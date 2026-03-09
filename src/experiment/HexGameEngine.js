@@ -1,6 +1,7 @@
 // HexGameEngine — pure functions, no mutation
 // Piece codes: 'K' King, 'Q' Queen, 'R' Rook, 'B' Bishop, 'N' Knight, 'P' Pawn
-// board: Map<hexKey, { piece, player, justAdded? }>
+// board: Map<hexKey, { piece, player, justAdded?, isBridge? }>
+// terrain: Map<hexKey, 'mountain'|'swamp'|'water'|'bridge'>  (absent = normal)
 // player: 1 | 2
 
 import {
@@ -8,106 +9,152 @@ import {
   hexKey, parseKey, isValid, buildHexGrid, hexDist,
 } from './hexMath';
 
+// ── Terrain helpers ───────────────────────────────────────────────────────────
+
+export function terrainOf(key, terrain) {
+  return terrain.get(key) ?? 'normal';
+}
+
+// Returns: 'no' | 'yes' | 'yes-stop' | 'pass-through'
+function canEnter(key, board, player, terrain, pieceType) {
+  const t = terrainOf(key, terrain);
+  if (t === 'mountain') return 'no';
+  if (t === 'water') {
+    // Only Rooks can enter open water (to become a bridge)
+    return pieceType === 'R' ? 'yes-stop' : 'no';
+  }
+  if (t === 'bridge') {
+    const resident = board.get(key);
+    if (!resident) return 'yes';
+    if (resident.player === player) {
+      // Own bridge: sliding pieces pass through; non-sliders blocked
+      return 'pass-through';
+    } else {
+      // Enemy bridge: only Rooks can capture & replace
+      return pieceType === 'R' ? 'yes-stop' : 'no';
+    }
+  }
+  // Normal or swamp
+  const resident = board.get(key);
+  if (resident) {
+    return resident.player === player ? 'no' : 'yes-stop'; // capture enemy
+  }
+  return t === 'swamp' ? 'yes-stop' : 'yes'; // swamp stops sliding
+}
+
 // ── Movement ─────────────────────────────────────────────────────────────────
 
-export function getLegalMoves(fromKey, board, player) {
+export function getLegalMoves(fromKey, board, player, terrain) {
   const entry = board.get(fromKey);
   if (!entry || entry.player !== player) return [];
-  // Queens added this turn cannot move
+  if (entry.isBridge) return [];                          // bridges are immovable
   if (entry.piece === 'Q' && entry.justAdded) return [];
   const [q, r] = parseKey(fromKey);
   switch (entry.piece) {
-    case 'K': return kingMoves(q, r, board, player);
-    case 'Q': return queenMoves(q, r, board, player);
-    case 'R': return rookMoves(q, r, board, player);
-    case 'B': return bishopMoves(q, r, board, player);
-    case 'N': return knightMoves(q, r, board, player);
-    case 'P': return pawnMoves(q, r, board, player);
+    case 'K': return kingMoves(q, r, board, player, terrain);
+    case 'Q': return queenMoves(q, r, board, player, terrain);
+    case 'R': return rookMoves(q, r, board, player, terrain);
+    case 'B': return bishopMoves(q, r, board, player, terrain);
+    case 'N': return knightMoves(q, r, board, player, terrain);
+    case 'P': return pawnMoves(q, r, board, player, terrain);
     default:  return [];
   }
 }
 
-function slide(q, r, board, player, dirs) {
+function slide(q, r, board, player, dirs, terrain, pieceType) {
   const moves = [];
   for (const [dq, dr] of dirs) {
     let nq = q + dq, nr = r + dr;
     while (isValid(nq, nr)) {
       const key = hexKey(nq, nr);
-      const target = board.get(key);
-      if (target) {
-        if (target.player !== player) moves.push(key); // capture enemy
-        break; // blocked regardless
-      }
+      const result = canEnter(key, board, player, terrain, pieceType);
+      if (result === 'no') break;
+      if (result === 'pass-through') { nq += dq; nr += dr; continue; }
       moves.push(key);
+      if (result === 'yes-stop') break;
       nq += dq; nr += dr;
     }
   }
   return moves;
 }
 
-function kingMoves(q, r, board, player) {
-  return DIRECTIONS
+function singleStep(q, r, offsets, board, player, terrain, pieceType) {
+  return offsets
     .map(([dq, dr]) => hexKey(q + dq, r + dr))
     .filter(k => {
       const [nq, nr] = parseKey(k);
       if (!isValid(nq, nr)) return false;
-      const t = board.get(k);
-      return !t || t.player !== player;
+      const result = canEnter(k, board, player, terrain, pieceType);
+      return result === 'yes' || result === 'yes-stop';
     });
 }
 
-function rookMoves(q, r, board, player)   { return slide(q, r, board, player, DIRECTIONS); }
-function bishopMoves(q, r, board, player) { return slide(q, r, board, player, BISHOP_DIRECTIONS); }
-function queenMoves(q, r, board, player)  {
-  return [...slide(q, r, board, player, DIRECTIONS), ...slide(q, r, board, player, BISHOP_DIRECTIONS)];
+function kingMoves(q, r, board, player, terrain) {
+  return singleStep(q, r, DIRECTIONS, board, player, terrain, 'K');
 }
-
-function knightMoves(q, r, board, player) {
-  return KNIGHT_MOVES
-    .map(([dq, dr]) => hexKey(q + dq, r + dr))
-    .filter(k => {
-      const [nq, nr] = parseKey(k);
-      if (!isValid(nq, nr)) return false;
-      const t = board.get(k);
-      return !t || t.player !== player;
-    });
+function rookMoves(q, r, board, player, terrain) {
+  return slide(q, r, board, player, DIRECTIONS, terrain, 'R');
+}
+function bishopMoves(q, r, board, player, terrain) {
+  return slide(q, r, board, player, BISHOP_DIRECTIONS, terrain, 'B');
+}
+function queenMoves(q, r, board, player, terrain) {
+  return [
+    ...slide(q, r, board, player, DIRECTIONS, terrain, 'Q'),
+    ...slide(q, r, board, player, BISHOP_DIRECTIONS, terrain, 'Q'),
+  ];
+}
+function knightMoves(q, r, board, player, terrain) {
+  return singleStep(q, r, KNIGHT_MOVES, board, player, terrain, 'N');
 }
 
 // P1 moves north (r−): forward (0,−1), captures (1,−1) and (−1,0)
 // P2 moves south (r+): forward (0,+1), captures (1,0) and (−1,+1)
-function pawnMoves(q, r, board, player) {
+function pawnMoves(q, r, board, player, terrain) {
   const moves = [];
   const [fq, fr] = player === 1 ? [0, -1] : [0, 1];
-  const caps = player === 1 ? [[1, -1], [-1, 0]] : [[1, 0], [-1, 1]];
+  const caps     = player === 1 ? [[1, -1], [-1, 0]] : [[1, 0], [-1, 1]];
 
-  // Forward (non-capture)
-  if (isValid(q + fq, r + fr) && !board.has(hexKey(q + fq, r + fr))) {
-    moves.push(hexKey(q + fq, r + fr));
+  const fwdKey = hexKey(q + fq, r + fr);
+  if (isValid(q + fq, r + fr)) {
+    const t = terrainOf(fwdKey, terrain);
+    if (!board.has(fwdKey) && t !== 'mountain' && t !== 'water' && t !== 'bridge') {
+      moves.push(fwdKey);
+    }
   }
-  // Diagonal captures
   for (const [dq, dr] of caps) {
     const cq = q + dq, cr = r + dr;
     if (!isValid(cq, cr)) continue;
-    const t = board.get(hexKey(cq, cr));
-    if (t && t.player !== player) moves.push(hexKey(cq, cr));
+    const cKey = hexKey(cq, cr);
+    const t = terrainOf(cKey, terrain);
+    if (t === 'mountain' || t === 'water' || t === 'bridge') continue;
+    const resident = board.get(cKey);
+    if (resident && resident.player !== player) moves.push(cKey);
   }
   return moves;
 }
 
 // ── Placement ─────────────────────────────────────────────────────────────────
 
-// All empty hexes adjacent to any friendly piece — valid "add piece" targets
-export function getPlacementTargets(board, player, hexGrid) {
+export function getPlacementTargets(board, player, hexGrid, terrain) {
   const targets = new Set();
   for (const [key, entry] of board) {
     if (entry.player !== player) continue;
     const [q, r] = parseKey(key);
     for (const [dq, dr] of DIRECTIONS) {
       const nk = hexKey(q + dq, r + dr);
-      if (hexGrid.has(nk) && !board.has(nk)) targets.add(nk);
+      if (!hexGrid.has(nk) || board.has(nk)) continue;
+      const t = terrainOf(nk, terrain);
+      if (t !== 'mountain' && t !== 'water' && t !== 'bridge') targets.add(nk);
     }
   }
   return [...targets];
+}
+
+// ── Terrain action cost ───────────────────────────────────────────────────────
+
+export function moveCost(toKey, terrain) {
+  return terrainOf(toKey, terrain) === 'swamp' ? 2 : 1;
 }
 
 // ── Win detection ─────────────────────────────────────────────────────────────
@@ -122,6 +169,21 @@ export function checkWin(board, foundArtifacts) {
   return null;
 }
 
+// ── Fog of war ────────────────────────────────────────────────────────────────
+
+export function getP2VisibleHexes(board) {
+  const visible = new Set();
+  for (const [key, entry] of board) {
+    if (entry.player !== 2) continue;
+    const [q, r] = parseKey(key);
+    visible.add(key);
+    for (const [dq, dr] of DIRECTIONS) {
+      if (isValid(q + dq, r + dr)) visible.add(hexKey(q + dq, r + dr));
+    }
+  }
+  return visible;
+}
+
 // ── Initial state factory ────────────────────────────────────────────────────
 
 export function buildInitialState() {
@@ -129,29 +191,47 @@ export function buildInitialState() {
   const board = new Map();
 
   // Player 1 — south (high r)
-  const p1Pieces = [
-    { q: 0, r: 8, piece: 'K' },
-  ];
+  board.set(hexKey(0, 8),   { piece: 'K', player: 1 });
+
   // Player 2 — north (low r)
-  const p2Pieces = [
-    { q: 0,  r: -8, piece: 'K' },
-    { q: 2,  r: -8, piece: 'N' },
-    { q: -1, r: -7, piece: 'P' },
-    { q: 1,  r: -7, piece: 'P' },
-  ];
+  board.set(hexKey(0, -8),  { piece: 'K', player: 2 });
+  board.set(hexKey(2, -8),  { piece: 'N', player: 2 });
+  board.set(hexKey(-1, -7), { piece: 'P', player: 2 });
+  board.set(hexKey(1, -7),  { piece: 'P', player: 2 });
 
-  for (const { q, r, piece } of p1Pieces) board.set(hexKey(q, r), { piece, player: 1 });
-  for (const { q, r, piece } of p2Pieces) board.set(hexKey(q, r), { piece, player: 2 });
+  // Protected zones: radius-3 around each starting cluster — no terrain placed there
+  const protectedZone = new Set(board.keys());
+  for (const [sq, sr] of [[0, 8], [0, -8]]) {
+    for (const k of hexGrid) {
+      const [q, r] = parseKey(k);
+      if (hexDist(q, r, sq, sr) <= 3) protectedZone.add(k);
+    }
+  }
 
-  // 3 random artifacts in the middle band (r in [−4, 4]), not on piece positions
+  // Generate terrain
+  const terrain = new Map();
+  for (const key of hexGrid) {
+    if (protectedZone.has(key)) continue;
+    const [, r] = parseKey(key);
+    const inMiddle = Math.abs(r) <= 3;
+    const roll = Math.random();
+    const mtn   = inMiddle ? 0.07 : 0.18;
+    const water = inMiddle ? 0.07 : 0.14;
+    const swamp = inMiddle ? 0.08 : 0.10;
+    if      (roll < mtn)              terrain.set(key, 'mountain');
+    else if (roll < mtn + water)      terrain.set(key, 'water');
+    else if (roll < mtn + water + swamp) terrain.set(key, 'swamp');
+  }
+
+  // Artifacts: middle band, only on normal (unset) terrain
   const occupied = new Set(board.keys());
   const candidates = [...hexGrid].filter(k => {
     const [, r] = parseKey(k);
-    return r >= -4 && r <= 4 && !occupied.has(k);
+    return Math.abs(r) <= 4 && !occupied.has(k) && !terrain.has(k);
   });
   const artifacts = new Set(pickRandom(candidates, 3));
 
-  return { hexGrid, board, artifacts };
+  return { hexGrid, board, artifacts, terrain };
 }
 
 function pickRandom(arr, n) {
@@ -162,21 +242,4 @@ function pickRandom(arr, n) {
     result.push(copy.splice(idx, 1)[0]);
   }
   return result;
-}
-
-// ── Fog of war ────────────────────────────────────────────────────────────────
-
-// Returns set of hexKeys visible to player 2 (distance ≤ 1 from any of their pieces)
-export function getP2VisibleHexes(board) {
-  const visible = new Set();
-  for (const [key, entry] of board) {
-    if (entry.player !== 2) continue;
-    const [q, r] = parseKey(key);
-    visible.add(key);
-    for (const [dq, dr] of DIRECTIONS) {
-      const nk = hexKey(q + dq, r + dr);
-      if (isValid(q + dq, r + dr)) visible.add(nk);
-    }
-  }
-  return visible;
 }

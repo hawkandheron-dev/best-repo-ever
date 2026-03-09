@@ -37,18 +37,27 @@ export function ExperimentScreen({ onBack }) {
           <div className={styles.howToSection}>
             <strong>Player 1</strong>
             <ul>
-              <li>You see the whole board. Player 2 is hidden in fog.</li>
-              <li>Up to 2 actions per turn: Move, Add a piece, or Excavate.</li>
+              <li>You see the whole board. Player 2 is in fog.</li>
+              <li>Up to 2 actions: Move, Add a piece, or Excavate.</li>
               <li>Excavate any hex to flip it — find all 3 ★ artifacts to win.</li>
-              <li>Adding Pawns places 2 for 1 action. Queens can't move the turn they're added.</li>
+              <li>Pawns: add 2 for 1 action. Queens can't move the turn added.</li>
             </ul>
           </div>
           <div className={styles.howToSection}>
             <strong>Player 2</strong>
             <ul>
-              <li>You only see hexes adjacent to your pieces — the rest is fog.</li>
+              <li>You only see hexes adjacent to your pieces — rest is fog.</li>
               <li>Up to 2 actions: Move or Add a piece.</li>
               <li>Capture Player 1's King to win.</li>
+            </ul>
+          </div>
+          <div className={styles.howToSection}>
+            <strong>Terrain</strong>
+            <ul>
+              <li>▲ Mountains — impassable for all pieces.</li>
+              <li>≋ Swamp — passable but costs both actions to enter.</li>
+              <li>≈ Water — blocked; move a Rook there to build a bridge.</li>
+              <li>Bridge — sliding pieces (Rook, Bishop, Queen) can cross.</li>
             </ul>
           </div>
         </div>

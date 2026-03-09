@@ -2,25 +2,27 @@ import {
   START_ACTION, SELECT_PIECE, SELECT_DESTINATION, SELECT_ADD_PIECE,
   EXCAVATE_HEX, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, NEW_GAME,
 } from './hexGameActions';
-import { getLegalMoves, getPlacementTargets, checkWin, buildInitialState, getP2VisibleHexes } from './HexGameEngine';
-import { hexKey } from './hexMath';
+import {
+  getLegalMoves, getPlacementTargets, checkWin, buildInitialState, moveCost, terrainOf,
+} from './HexGameEngine';
 
 export function buildInitialGameState() {
-  const { hexGrid, board, artifacts } = buildInitialState();
+  const { hexGrid, board, artifacts, terrain } = buildInitialState();
   return {
     hexGrid,
     board,
+    terrain,       // Map<hexKey, 'mountain'|'water'|'swamp'|'bridge'>
     artifacts,
     excavated: new Set(),
     foundArtifacts: 0,
     turn: 1,
     actionsLeft: 2,
-    phase: 'select-action',  // 'select-action'|'select-piece'|'select-destination'|'select-add-hex'|'select-excavate'|'game-over'
+    phase: 'select-action',
     selectedPiece: null,
     legalMoves: [],
     pendingAction: null,
     pendingAddPiece: null,
-    pendingPawnCount: 0,      // 0 = done, 1 = placing first pawn, 2 = placing second pawn
+    pendingPawnCount: 0,
     winner: null,
     winReason: null,
     countdown: null,
@@ -36,23 +38,17 @@ export function hexGameReducer(state, action) {
     case START_ACTION: {
       if (state.phase !== 'select-action' || state.actionsLeft <= 0) return state;
       const { actionType } = action;
-      if (actionType === 'move') {
-        return { ...state, phase: 'select-piece', pendingAction: 'move' };
-      }
-      if (actionType === 'excavate') {
-        return { ...state, phase: 'select-excavate', pendingAction: 'excavate' };
-      }
-      if (actionType === 'add') {
-        return { ...state, phase: 'select-add-piece', pendingAction: 'add' };
-      }
+      if (actionType === 'move')     return { ...state, phase: 'select-piece', pendingAction: 'move' };
+      if (actionType === 'excavate') return { ...state, phase: 'select-excavate', pendingAction: 'excavate' };
+      if (actionType === 'add')      return { ...state, phase: 'select-add-piece', pendingAction: 'add' };
       return state;
     }
 
     case SELECT_PIECE: {
       if (state.phase !== 'select-piece') return state;
       const { key } = action;
-      const moves = getLegalMoves(key, state.board, state.turn);
-      if (moves.length === 0) return state; // no legal moves, stay in select-piece
+      const moves = getLegalMoves(key, state.board, state.turn, state.terrain);
+      if (moves.length === 0) return state;
       return { ...state, phase: 'select-destination', selectedPiece: key, legalMoves: moves };
     }
 
@@ -60,31 +56,47 @@ export function hexGameReducer(state, action) {
       if (state.phase === 'select-destination') {
         const { key } = action;
         if (!state.legalMoves.includes(key)) {
-          // Clicked own piece — re-select
-          const newMoves = getLegalMoves(key, state.board, state.turn);
-          if (newMoves.length > 0) {
-            return { ...state, selectedPiece: key, legalMoves: newMoves };
-          }
+          // Re-select another piece
+          const newMoves = getLegalMoves(key, state.board, state.turn, state.terrain);
+          if (newMoves.length > 0) return { ...state, selectedPiece: key, legalMoves: newMoves };
           return state;
         }
+
         // Execute move
         const newBoard = new Map(state.board);
         const pieceEntry = { ...newBoard.get(state.selectedPiece) };
-        // Clear justAdded on move
         delete pieceEntry.justAdded;
         newBoard.delete(state.selectedPiece);
+
+        // Bridge mechanic: rook landing on water becomes a bridge
+        const newTerrain = new Map(state.terrain);
+        const destTerrain = terrainOf(key, state.terrain);
+        if (pieceEntry.piece === 'R' && destTerrain === 'water') {
+          pieceEntry.isBridge = true;
+          newTerrain.set(key, 'bridge');
+        } else if (pieceEntry.piece === 'R' && destTerrain === 'bridge') {
+          // Rook captures enemy bridge: becomes the new bridge
+          pieceEntry.isBridge = true;
+          newTerrain.set(key, 'bridge');
+        } else {
+          // Remove isBridge if rook somehow moves off (shouldn't happen, but guard)
+          delete pieceEntry.isBridge;
+        }
         newBoard.set(key, pieceEntry);
 
-        const nextActionsLeft = state.actionsLeft - 1;
-        // Clear justAdded from all pieces at turn end if actions used up
+        // Swamp costs 2 actions; otherwise 1
+        const cost = moveCost(key, state.terrain);
+        const nextActionsLeft = Math.max(0, state.actionsLeft - cost);
+
         const nextState = {
           ...state,
           board: newBoard,
+          terrain: newTerrain,
           selectedPiece: null,
           legalMoves: [],
           pendingAction: null,
           actionsLeft: nextActionsLeft,
-          phase: nextActionsLeft > 0 ? 'select-action' : 'select-action',
+          phase: 'select-action',
         };
 
         const win = checkWin(newBoard, nextState.foundArtifacts);
@@ -95,26 +107,24 @@ export function hexGameReducer(state, action) {
 
       if (state.phase === 'select-add-hex') {
         const { key } = action;
-        const targets = getPlacementTargets(state.board, state.turn, state.hexGrid);
+        const targets = getPlacementTargets(state.board, state.turn, state.hexGrid, state.terrain);
         if (!targets.includes(key)) return state;
 
         const newBoard = new Map(state.board);
-        const isPawn = state.pendingAddPiece === 'P';
+        const isPawn  = state.pendingAddPiece === 'P';
         const isQueen = state.pendingAddPiece === 'Q';
 
         if (isPawn && state.pendingPawnCount === 2) {
-          // Placing first of two pawns
           newBoard.set(key, { piece: 'P', player: state.turn });
           return {
             ...state,
             board: newBoard,
             pendingPawnCount: 1,
-            legalMoves: getPlacementTargets(newBoard, state.turn, state.hexGrid),
+            legalMoves: getPlacementTargets(newBoard, state.turn, state.hexGrid, state.terrain),
           };
         }
 
         if (isPawn && state.pendingPawnCount === 1) {
-          // Placing second pawn — action completes
           newBoard.set(key, { piece: 'P', player: state.turn });
           const nextActionsLeft = state.actionsLeft - 1;
           const nextState = {
@@ -132,7 +142,6 @@ export function hexGameReducer(state, action) {
           return nextState;
         }
 
-        // Non-pawn placement
         const entry = { piece: state.pendingAddPiece, player: state.turn };
         if (isQueen) entry.justAdded = true;
         newBoard.set(key, entry);
@@ -158,13 +167,12 @@ export function hexGameReducer(state, action) {
     case SELECT_ADD_PIECE: {
       if (state.phase !== 'select-add-piece') return state;
       const { pieceType } = action;
-      const targets = getPlacementTargets(state.board, state.turn, state.hexGrid);
-      const isPawn = pieceType === 'P';
+      const targets = getPlacementTargets(state.board, state.turn, state.hexGrid, state.terrain);
       return {
         ...state,
         phase: 'select-add-hex',
         pendingAddPiece: pieceType,
-        pendingPawnCount: isPawn ? 2 : 0,
+        pendingPawnCount: pieceType === 'P' ? 2 : 0,
         legalMoves: targets,
       };
     }
@@ -172,11 +180,10 @@ export function hexGameReducer(state, action) {
     case EXCAVATE_HEX: {
       if (state.phase !== 'select-excavate') return state;
       const { key } = action;
-      if (state.excavated.has(key)) return state; // already excavated
+      if (state.excavated.has(key)) return state;
 
       const newExcavated = new Set(state.excavated);
       newExcavated.add(key);
-
       const foundArtifact = state.artifacts.has(key);
       const newFoundArtifacts = state.foundArtifacts + (foundArtifact ? 1 : 0);
 
@@ -214,10 +221,7 @@ export function hexGameReducer(state, action) {
     case TICK_COUNTDOWN: {
       if (state.countdown === null) return state;
       const next = state.countdown - 1;
-      if (next <= 0) {
-        // Countdown done → switch to handoff
-        return { ...state, countdown: null, handoff: true };
-      }
+      if (next <= 0) return { ...state, countdown: null, handoff: true };
       return { ...state, countdown: next };
     }
 
