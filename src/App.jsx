@@ -1,18 +1,38 @@
+import { useState } from 'react';
 import { GameProvider } from './game/gameContext';
 import { useGame } from './hooks/useGame';
 import { GameScreen } from './screens/GameScreen';
 import { ResultScreen } from './screens/ResultScreen';
+import { MenuScreen } from './screens/MenuScreen';
+import { ExperimentScreen } from './screens/ExperimentScreen';
+import { HexGameProvider } from './experiment/hexGameContext';
 
-function AppContent() {
+function ClassicContent({ onBack }) {
   const { state } = useGame();
   const isTerminal = ['checkmate', 'stalemate', 'draw', 'resigned'].includes(state.status);
-  return isTerminal ? <ResultScreen /> : <GameScreen />;
+  return isTerminal ? <ResultScreen onBack={onBack} /> : <GameScreen onBack={onBack} />;
 }
 
 export default function App() {
-  return (
-    <GameProvider>
-      <AppContent />
-    </GameProvider>
-  );
+  const [mode, setMode] = useState('menu');
+
+  if (mode === 'menu') return <MenuScreen onSelect={setMode} />;
+
+  if (mode === 'classic') {
+    return (
+      <GameProvider>
+        <ClassicContent onBack={() => setMode('menu')} />
+      </GameProvider>
+    );
+  }
+
+  if (mode === 'experiment') {
+    return (
+      <HexGameProvider>
+        <ExperimentScreen onBack={() => setMode('menu')} />
+      </HexGameProvider>
+    );
+  }
+
+  return null;
 }
