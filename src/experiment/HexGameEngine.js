@@ -134,6 +134,22 @@ function pawnMoves(q, r, board, player, terrain) {
   return moves;
 }
 
+// ── Excavation targets ────────────────────────────────────────────────────────
+
+export function getExcavationTargets(board, player, hexGrid) {
+  const targets = new Set();
+  for (const [key, entry] of board) {
+    if (entry.player !== player) continue;
+    targets.add(key); // the hex the piece occupies
+    const [q, r] = parseKey(key);
+    for (const [dq, dr] of DIRECTIONS) {
+      const nk = hexKey(q + dq, r + dr);
+      if (hexGrid.has(nk)) targets.add(nk);
+    }
+  }
+  return [...targets];
+}
+
 // ── Placement ─────────────────────────────────────────────────────────────────
 
 export function getPlacementTargets(board, player, hexGrid, terrain) {
