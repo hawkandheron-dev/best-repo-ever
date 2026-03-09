@@ -1,0 +1,49 @@
+.screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  background: #0f0f1a;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  background: #1a1a2e;
+  border-radius: 20px;
+  padding: 40px 32px;
+  width: min(360px, 100%);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+
+.trophy {
+  font-size: 4rem;
+}
+
+.message {
+  color: #f0f0f0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 0;
+}
+
+.btn {
+  background: #2a5298;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 40px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.btn:active {
+  opacity: 0.8;
+}

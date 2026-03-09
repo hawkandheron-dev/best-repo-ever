@@ -1,0 +1,7 @@
+.boardContainer {
+  width: min(100vw, calc(100dvh - 200px));
+  aspect-ratio: 1 / 1;
+  touch-action: none;
+  border-radius: 4px;
+  overflow: hidden;
+}

@@ -1,0 +1,77 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog {
+  background: #1e1e2e;
+  border-radius: 16px;
+  padding: 24px;
+  width: min(340px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.title {
+  color: #e0e0e0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  margin: 0;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pieceButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: #2a2a3e;
+  border: 2px solid #444;
+  border-radius: 12px;
+  padding: 16px 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pieceButton:active {
+  background: #3a3a5e;
+  border-color: #7a7aff;
+}
+
+.glyph {
+  font-size: 2.5rem;
+  line-height: 1;
+  color: #f0f0f0;
+}
+
+.pieceName {
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.cancelButton {
+  background: transparent;
+  border: 1px solid #666;
+  border-radius: 8px;
+  color: #aaa;
+  padding: 10px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.cancelButton:active {
+  background: #333;
+}

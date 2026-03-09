@@ -1,0 +1,32 @@
+.container {
+  width: 100%;
+  max-height: 120px;
+  overflow-y: auto;
+  background: #12121e;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-family: monospace;
+  color: #ccc;
+}
+
+.row:nth-child(even) {
+  background: rgba(255,255,255,0.04);
+}
+
+.num {
+  color: #666;
+  padding: 2px 6px 2px 2px;
+  width: 30px;
+  text-align: right;
+}
+
+.move {
+  padding: 2px 10px 2px 4px;
+  min-width: 60px;
+}
