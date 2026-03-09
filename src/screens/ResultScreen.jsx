@@ -15,7 +15,7 @@ const MESSAGES = {
   },
 };
 
-export function ResultScreen() {
+export function ResultScreen({ onBack }) {
   const { state, dispatch } = useGame();
   const { status, orientation } = state;
   const getMessage = MESSAGES[status];
@@ -29,6 +29,11 @@ export function ResultScreen() {
         <button className={styles.btn} onClick={() => dispatch({ type: NEW_GAME })}>
           Play Again
         </button>
+        {onBack && (
+          <button className={styles.btn} style={{ background: '#222', marginTop: '0.5rem' }} onClick={onBack}>
+            Main Menu
+          </button>
+        )}
       </div>
     </div>
   );

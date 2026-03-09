@@ -1,0 +1,116 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #111128;
+  border-top: 1px solid #2a2a44;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.playerLabel {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #d0d0f0;
+}
+
+.dots {
+  display: flex;
+  gap: 4px;
+}
+
+.dotFull {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6060dd;
+  display: block;
+}
+
+.dotEmpty {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2a2a44;
+  border: 1px solid #3a3a60;
+  display: block;
+}
+
+.actionsLeft {
+  font-size: 0.75rem;
+  color: #888;
+  margin-left: auto;
+}
+
+.prompt {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #a0a0c0;
+  text-align: center;
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actionBtn {
+  flex: 1;
+  padding: 0.6rem 0.25rem;
+  background: #1e1e40;
+  border: 1px solid #3a3a6a;
+  border-radius: 8px;
+  color: #c0c0e0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.actionBtn:active:not(:disabled) {
+  background: #2a2a58;
+}
+
+.actionBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.bottomRow {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.cancelBtn {
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: 1px solid #3a3a5a;
+  border-radius: 8px;
+  color: #888;
+  font-size: 0.85rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.endTurnBtn {
+  flex: 1;
+  padding: 0.6rem;
+  background: #2a1a4a;
+  border: 1px solid #5a3a8a;
+  border-radius: 8px;
+  color: #c0a0e0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.endTurnBtn:active {
+  background: #38205e;
+}
