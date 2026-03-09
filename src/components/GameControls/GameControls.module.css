@@ -1,0 +1,38 @@
+.controls {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  min-width: 100px;
+  transition: opacity 0.15s;
+}
+
+.btn:active {
+  opacity: 0.75;
+}
+
+.primary {
+  background: #2a5298;
+  color: #fff;
+}
+
+.secondary {
+  background: #2a2a3e;
+  color: #ccc;
+  border: 1px solid #444;
+}
+
+.danger {
+  background: #8b0000;
+  color: #fff;
+}

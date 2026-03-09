@@ -1,0 +1,6 @@
+export const SELECT_SQUARE = 'SELECT_SQUARE';
+export const ATTEMPT_MOVE = 'ATTEMPT_MOVE';
+export const CONFIRM_PROMOTION = 'CONFIRM_PROMOTION';
+export const CANCEL_PROMOTION = 'CANCEL_PROMOTION';
+export const NEW_GAME = 'NEW_GAME';
+export const RESIGN = 'RESIGN';
