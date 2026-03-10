@@ -3,7 +3,8 @@ import {
   EXCAVATE_HEX, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, NEW_GAME,
 } from './hexGameActions';
 import {
-  getLegalMoves, getPlacementTargets, checkWin, buildInitialState, moveCost, terrainOf,
+  getLegalMoves, getPlacementTargets, getExcavationTargets,
+  checkWin, buildInitialState, moveCost, terrainOf,
 } from './HexGameEngine';
 
 export function buildInitialGameState() {
@@ -39,7 +40,10 @@ export function hexGameReducer(state, action) {
       if (state.phase !== 'select-action' || state.actionsLeft <= 0) return state;
       const { actionType } = action;
       if (actionType === 'move')     return { ...state, phase: 'select-piece', pendingAction: 'move' };
-      if (actionType === 'excavate') return { ...state, phase: 'select-excavate', pendingAction: 'excavate' };
+      if (actionType === 'excavate') {
+        const targets = getExcavationTargets(state.board, state.turn, state.hexGrid);
+        return { ...state, phase: 'select-excavate', pendingAction: 'excavate', legalMoves: targets };
+      }
       if (actionType === 'add')      return { ...state, phase: 'select-add-piece', pendingAction: 'add' };
       return state;
     }
@@ -180,6 +184,7 @@ export function hexGameReducer(state, action) {
     case EXCAVATE_HEX: {
       if (state.phase !== 'select-excavate') return state;
       const { key } = action;
+      if (!state.legalMoves.includes(key)) return state; // must be on/adjacent to a piece
       if (state.excavated.has(key)) return state;
 
       const newExcavated = new Set(state.excavated);
