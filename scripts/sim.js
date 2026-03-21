@@ -17,12 +17,16 @@
 import { buildInitialGameState, hexGameReducer } from '../src/experiment/hexGameReducer.js';
 import {
   getLegalMoves, getPlacementTargets, getExcavationTargets,
+  getScryTargets, getP2VisibleHexes,
 } from '../src/experiment/HexGameEngine.js';
-import { parseKey, hexDist } from '../src/experiment/hexMath.js';
+import { parseKey, hexDist, hexKey } from '../src/experiment/hexMath.js';
 import {
   START_ACTION, SELECT_PIECE, SELECT_DESTINATION,
-  SELECT_ADD_PIECE, EXCAVATE_HEX, DISMISS_HANDOFF, TICK_COUNTDOWN,
+  SELECT_ADD_PIECE, EXCAVATE_HEX, SCRY_FROM, DISMISS_HANDOFF, TICK_COUNTDOWN,
 } from '../src/experiment/hexGameActions.js';
+
+// Axial hex neighbour offsets (E, NE, NW, W, SW, SE) — mirrors HexGameEngine DIRECTIONS
+const HEX_DIRS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -316,6 +320,409 @@ function p2BalancedAgent(state) {
   return p2GreedyAgent(state);
 }
 
+// ── P1 Scry Oracle ────────────────────────────────────────────────────────────
+// Treats the Scry action as action-1 on every turn, then uses the resulting
+// directionIndex to step the King one hex toward the nearest artifact as action-2.
+// Breaks the pattern by excavating only when a known artifact is right there.
+
+function p1ScryOracleAgent(state) {
+  const player = 1;
+
+  let kingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { kingKey = key; break; }
+  }
+  if (!kingKey) return randomAgent(state);
+
+  // Priority 1: excavate a confirmed artifact in range (never pass this up)
+  const excavTargets = getExcavationTargets(state.board, player, state.hexGrid)
+    .filter(k => !state.excavated.has(k));
+  const knownArtifact = excavTargets.find(k => state.artifacts.has(k));
+  if (knownArtifact) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+    return dispatch(s, { type: EXCAVATE_HEX, key: knownArtifact });
+  }
+
+  // Priority 2: scry if we have no result yet this turn
+  if (state.scryResults.length === 0) {
+    const scryTargets = getScryTargets(state.board);
+    const from = scryTargets.includes(kingKey) ? kingKey : scryTargets[0];
+    if (from) {
+      let s = dispatch(state, { type: START_ACTION, actionType: 'scry' });
+      return dispatch(s, { type: SCRY_FROM, key: from });
+    }
+  }
+
+  // Priority 3: move King one step in direction from latest scry result
+  const latest = state.scryResults[state.scryResults.length - 1];
+  if (latest) {
+    const [kq, kr] = parseKey(kingKey);
+    const [dq, dr] = HEX_DIRS[latest.directionIndex];
+    const idealKey  = hexKey(kq + dq, kr + dr);
+    const kingMoves = getLegalMoves(kingKey, state.board, player, state.terrain);
+
+    if (kingMoves.length > 0) {
+      // Use ideal step if legal; otherwise pick the legal move that minimises
+      // distance to a far point along the scry direction.
+      const farQ = kq + dq * 99, farR = kr + dr * 99;
+      let target = null, bestDist = Infinity;
+      for (const toKey of kingMoves) {
+        const [tq, tr] = parseKey(toKey);
+        const d = hexDist(tq, tr, farQ, farR);
+        if (d < bestDist) { bestDist = d; target = toKey; }
+      }
+      if (target) {
+        let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+        s = dispatch(s, { type: SELECT_PIECE, key: kingKey });
+        return dispatch(s, { type: SELECT_DESTINATION, key: target });
+      }
+    }
+  }
+
+  // Fallback: excavate any unexcavated hex
+  if (excavTargets.length > 0) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+    return dispatch(s, { type: EXCAVATE_HEX, key: excavTargets[0] });
+  }
+
+  return p1GreedyAgent(state);
+}
+
+// ── P1 Bishop Sweeper ─────────────────────────────────────────────────────────
+// Immediately deploys a Bishop and routes it through the middle artifact band
+// (|r| ≤ 4) using its long diagonal slides, excavating at each stop.
+
+function p1BishopSweeperAgent(state) {
+  const player = 1;
+  const MIDDLE_BAND = 4;
+
+  // Locate P1's first mobile Bishop (if any)
+  let bishopKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'B' && !e.isBridge) {
+      bishopKey = key; break;
+    }
+  }
+
+  // No Bishop yet — add one on the hex closest to the middle band
+  if (!bishopKey) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'B' });
+    if (s.legalMoves.length > 0) {
+      let best = s.legalMoves[0], bestAbsR = Infinity;
+      for (const k of s.legalMoves) {
+        const [, r] = parseKey(k);
+        if (Math.abs(r) < bestAbsR) { bestAbsR = Math.abs(r); best = k; }
+      }
+      return dispatch(s, { type: SELECT_DESTINATION, key: best });
+    }
+    return p1GreedyAgent(state);
+  }
+
+  // Bishop exists — try to excavate a middle-band or artifact hex in range
+  const excavTargets = getExcavationTargets(state.board, player, state.hexGrid)
+    .filter(k => !state.excavated.has(k));
+
+  const artifact = excavTargets.find(k => state.artifacts.has(k));
+  if (artifact) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+    return dispatch(s, { type: EXCAVATE_HEX, key: artifact });
+  }
+
+  const middleHex = excavTargets.find(k => { const [, r] = parseKey(k); return Math.abs(r) <= MIDDLE_BAND; });
+  if (middleHex) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+    return dispatch(s, { type: EXCAVATE_HEX, key: middleHex });
+  }
+
+  // No good excavation target — slide Bishop toward middle band
+  const bishopMoves = getLegalMoves(bishopKey, state.board, player, state.terrain);
+  if (bishopMoves.length > 0) {
+    let best = bishopMoves[0], bestScore = -Infinity;
+    for (const toKey of bishopMoves) {
+      const [, r] = parseKey(toKey);
+      // Score: prefer hexes in or near middle band with many unexcavated neighbours
+      const bandScore = MIDDLE_BAND + 1 - Math.abs(r);
+      let unexcNeighbours = 0;
+      for (const [dq, dr] of HEX_DIRS) {
+        const [tq, tr] = parseKey(toKey);
+        const nk = hexKey(tq + dq, tr + dr);
+        if (state.hexGrid.has(nk) && !state.excavated.has(nk)) unexcNeighbours++;
+      }
+      const score = bandScore * 2 + unexcNeighbours;
+      if (score > bestScore) { bestScore = score; best = toKey; }
+    }
+    let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+    s = dispatch(s, { type: SELECT_PIECE, key: bishopKey });
+    return dispatch(s, { type: SELECT_DESTINATION, key: best });
+  }
+
+  return p1GreedyAgent(state);
+}
+
+// ── P1 Turtle Fortress ────────────────────────────────────────────────────────
+// Builds a pawn wall north of the King before advancing, then excavates from
+// behind that living barrier. Reinforce the wall if P2 breaks through.
+
+const TURTLE_WALL_SIZE = 3;
+
+function p1TurtleAgent(state) {
+  const player = 1;
+
+  let kingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { kingKey = key; break; }
+  }
+  if (!kingKey) return randomAgent(state);
+  const [kq, kr] = parseKey(kingKey);
+
+  const wallPawns = [...state.board.values()].filter(
+    e => e.player === 1 && e.piece === 'P' && !e.isBridge
+  ).length;
+
+  // Build wall if below target size
+  if (wallPawns < TURTLE_WALL_SIZE) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'P' });
+
+    if (s.legalMoves.length > 0) {
+      // Helper: score a placement hex — prefer north of King (lower r), close to King
+      const scoreHex = k => {
+        const [q, r] = parseKey(k);
+        return hexDist(q, r, kq, kr) + (r < kr ? -2 : 0);
+      };
+
+      let hex1 = s.legalMoves[0];
+      for (const k of s.legalMoves) { if (scoreHex(k) < scoreHex(hex1)) hex1 = k; }
+      s = dispatch(s, { type: SELECT_DESTINATION, key: hex1 }); // places pawn 1
+
+      if (s.legalMoves.length > 0) {
+        let hex2 = s.legalMoves[0];
+        for (const k of s.legalMoves) { if (scoreHex(k) < scoreHex(hex2)) hex2 = k; }
+        s = dispatch(s, { type: SELECT_DESTINATION, key: hex2 }); // places pawn 2
+      }
+      return s;
+    }
+  }
+
+  // Wall is up — excavate from current footprint
+  const excavTargets = getExcavationTargets(state.board, player, state.hexGrid)
+    .filter(k => !state.excavated.has(k));
+
+  const hit = excavTargets.find(k => state.artifacts.has(k));
+  if (hit) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+    return dispatch(s, { type: EXCAVATE_HEX, key: hit });
+  }
+  if (excavTargets.length > 0) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+    return dispatch(s, { type: EXCAVATE_HEX, key: excavTargets[0] });
+  }
+
+  return p1GreedyAgent(state);
+}
+
+// ── P1 King Hunter ────────────────────────────────────────────────────────────
+// P1 acts as aggressor: quickly builds a small strike force (Q + B + N),
+// marches it toward P2, and captures enemy pieces before they reach the King.
+// Only excavates when a known artifact is right at hand.
+
+function p1KingHunterAgent(state) {
+  const player = 1;
+
+  let p2KingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 2 && e.piece === 'K') { p2KingKey = key; break; }
+  }
+
+  // Grab a known artifact if it's already in excavation range
+  const excavTargets = getExcavationTargets(state.board, player, state.hexGrid)
+    .filter(k => !state.excavated.has(k));
+  const knownArtifact = excavTargets.find(k => state.artifacts.has(k));
+  if (knownArtifact) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+    return dispatch(s, { type: EXCAVATE_HEX, key: knownArtifact });
+  }
+
+  // Capture any P2 piece that is reachable this action
+  const movable = [...state.board.entries()].filter(
+    ([k, e]) => e.player === player && !e.isBridge &&
+      getLegalMoves(k, state.board, player, state.terrain).length > 0
+  );
+  for (const [fromKey] of movable) {
+    const moves = getLegalMoves(fromKey, state.board, player, state.terrain);
+    for (const toKey of moves) {
+      const resident = state.board.get(toKey);
+      if (resident && resident.player === 2) {
+        let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+        s = dispatch(s, { type: SELECT_PIECE, key: fromKey });
+        return dispatch(s, { type: SELECT_DESTINATION, key: toKey });
+      }
+    }
+  }
+
+  // Build strike force: King → add Q → add B → add N
+  const p1Count = [...state.board.values()].filter(e => e.player === 1 && !e.isBridge).length;
+  if (p1Count < 4) {
+    const placements = getPlacementTargets(state.board, player, state.hexGrid, state.terrain);
+    if (placements.length > 0) {
+      const nextPiece = p1Count === 1 ? 'Q' : p1Count === 2 ? 'B' : 'N';
+      let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+      s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: nextPiece });
+      if (s.legalMoves.length > 0) {
+        // Place the new piece toward P2 King
+        let best = s.legalMoves[0];
+        if (p2KingKey) {
+          const [p2q, p2r] = parseKey(p2KingKey);
+          for (const k of s.legalMoves) {
+            const [kq2, kr2] = parseKey(k);
+            const [bq2, br2] = parseKey(best);
+            if (hexDist(kq2, kr2, p2q, p2r) < hexDist(bq2, br2, p2q, p2r)) best = k;
+          }
+        }
+        return dispatch(s, { type: SELECT_DESTINATION, key: best });
+      }
+    }
+  }
+
+  // March the whole formation toward P2 King
+  if (p2KingKey && movable.length > 0) {
+    const [p2q, p2r] = parseKey(p2KingKey);
+    let bestMove = null, bestDist = Infinity;
+    for (const [fromKey] of movable) {
+      const moves = getLegalMoves(fromKey, state.board, player, state.terrain);
+      for (const toKey of moves) {
+        const [tq, tr] = parseKey(toKey);
+        const d = hexDist(tq, tr, p2q, p2r);
+        if (d < bestDist) { bestDist = d; bestMove = { fromKey, toKey }; }
+      }
+    }
+    if (bestMove) {
+      let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+      s = dispatch(s, { type: SELECT_PIECE, key: bestMove.fromKey });
+      return dispatch(s, { type: SELECT_DESTINATION, key: bestMove.toKey });
+    }
+  }
+
+  return p1GreedyAgent(state);
+}
+
+// ── P2 Pawn Flood ─────────────────────────────────────────────────────────────
+// Every action spawns 2 Pawns (pawn placement costs 1 action but places 2)
+// on whichever free hexes sit closest to P1's King. Creates a dense advancing
+// wave. Falls back to p2Greedy only when placements are impossible.
+
+function p2PawnFloodAgent(state) {
+  const player = 2;
+
+  let p1KingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { p1KingKey = key; break; }
+  }
+  if (!p1KingKey) return randomAgent(state);
+  const [kq, kr] = parseKey(p1KingKey);
+
+  const placements = getPlacementTargets(state.board, player, state.hexGrid, state.terrain);
+  if (placements.length > 0) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'P' });
+
+    if (s.legalMoves.length > 0) {
+      // Place pawn 1 on hex closest to P1 King
+      let hex1 = s.legalMoves[0];
+      for (const k of s.legalMoves) {
+        const [q, r] = parseKey(k);
+        const [bq, br] = parseKey(hex1);
+        if (hexDist(q, r, kq, kr) < hexDist(bq, br, kq, kr)) hex1 = k;
+      }
+      s = dispatch(s, { type: SELECT_DESTINATION, key: hex1 });
+
+      // Place pawn 2 on hex closest to P1 King from updated placements
+      if (s.legalMoves.length > 0) {
+        let hex2 = s.legalMoves[0];
+        for (const k of s.legalMoves) {
+          const [q, r] = parseKey(k);
+          const [bq, br] = parseKey(hex2);
+          if (hexDist(q, r, kq, kr) < hexDist(bq, br, kq, kr)) hex2 = k;
+        }
+        s = dispatch(s, { type: SELECT_DESTINATION, key: hex2 });
+      }
+      return s;
+    }
+  }
+
+  return p2GreedyAgent(state);
+}
+
+// ── P2 Fog Stalker ────────────────────────────────────────────────────────────
+// Phase 1 (P1 King not yet in fog-of-war vision): spread pieces to maximise
+// newly revealed hexes each action — like a sensor sweep.
+// Phase 2 (P1 King visible): switch to p2Greedy to converge instantly.
+
+function p2FogStalkerAgent(state) {
+  const player = 2;
+
+  const visibleHexes = getP2VisibleHexes(state.board);
+
+  // Phase 2 check — is P1 King already visible?
+  let p1KingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { p1KingKey = key; break; }
+  }
+  if (p1KingKey && visibleHexes.has(p1KingKey)) {
+    return p2GreedyAgent(state);
+  }
+
+  // Phase 1 — move piece that reveals the most new hexes
+  const movable = [...state.board.entries()].filter(
+    ([k, e]) => e.player === player && !e.isBridge &&
+      getLegalMoves(k, state.board, player, state.terrain).length > 0
+  );
+
+  // Score a hex by how many grid hexes it reveals that aren't already visible
+  const revealScore = (toKey) => {
+    let score = visibleHexes.has(toKey) ? 0 : 1;
+    const [tq, tr] = parseKey(toKey);
+    for (const [dq, dr] of HEX_DIRS) {
+      const nk = hexKey(tq + dq, tr + dr);
+      if (state.hexGrid.has(nk) && !visibleHexes.has(nk)) score++;
+    }
+    return score;
+  };
+
+  let bestMove = null, bestScore = -1;
+  for (const [fromKey] of movable) {
+    const moves = getLegalMoves(fromKey, state.board, player, state.terrain);
+    for (const toKey of moves) {
+      const score = revealScore(toKey);
+      if (score > bestScore) { bestScore = score; bestMove = { fromKey, toKey }; }
+    }
+  }
+
+  if (bestMove && bestScore > 0) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+    s = dispatch(s, { type: SELECT_PIECE, key: bestMove.fromKey });
+    return dispatch(s, { type: SELECT_DESTINATION, key: bestMove.toKey });
+  }
+
+  // Can't improve coverage by moving — add a piece on hex with best reveal score
+  const placements = getPlacementTargets(state.board, player, state.hexGrid, state.terrain);
+  if (placements.length > 0) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'N' });
+    if (s.legalMoves.length > 0) {
+      let bestHex = s.legalMoves[0], bestRev = -1;
+      for (const k of s.legalMoves) {
+        const sc = revealScore(k);
+        if (sc > bestRev) { bestRev = sc; bestHex = k; }
+      }
+      return dispatch(s, { type: SELECT_DESTINATION, key: bestHex });
+    }
+  }
+
+  return p2GreedyAgent(state);
+}
+
 // ── Game runner ───────────────────────────────────────────────────────────────
 
 const MAX_ACTIONS = 600; // safety cap — prevents truly infinite games
@@ -390,13 +797,42 @@ const verbose = args.includes('--verbose');
 console.log(`\nHex Game AI Simulation`);
 console.log(`Games per matchup: ${N}`);
 console.log(`\nAgents:`);
-console.log(`  random       — uniform random action selection`);
-console.log(`  p1-greedy    — P1 always excavates, then moves toward artifacts`);
-console.log(`  p1-defensive — p1-greedy + evades when P2 is within ${THREAT_DIST} hexes of king`);
-console.log(`  p2-greedy    — P2 captures king if reachable, else closes distance`);
-console.log(`  p2-balanced  — p2-greedy + adds a Knight when piece count < 5`);
+console.log(`  random          — uniform random action selection`);
+console.log(`  p1-greedy       — P1 always excavates, then moves toward artifacts`);
+console.log(`  p1-defensive    — p1-greedy + evades when P2 is within ${THREAT_DIST} hexes of king`);
+console.log(`  p1-scry-oracle  — scry first each turn, then step King toward caret direction`);
+console.log(`  p1-bishop-sweep — deploy a Bishop and raster-scan the middle artifact band`);
+console.log(`  p1-turtle       — build a pawn wall north of King, excavate from safety`);
+console.log(`  p1-king-hunter  — build Q+B+N strike force and march toward P2`);
+console.log(`  p2-greedy       — P2 captures king if reachable, else closes distance`);
+console.log(`  p2-balanced     — p2-greedy + adds a Knight when piece count < 5`);
+console.log(`  p2-pawn-flood   — always spawns 2 Pawns per action aimed at P1 King`);
+console.log(`  p2-fog-stalker  — spread to maximise fog coverage, converge when P1 spotted`);
 
-runBatch(N, p1GreedyAgent,     p2GreedyAgent,     'p1-greedy    vs p2-greedy    (baseline)',    verbose);
-runBatch(N, p1DefensiveAgent,  p2GreedyAgent,     'p1-defensive vs p2-greedy',                  verbose);
-runBatch(N, p1GreedyAgent,     p2BalancedAgent,   'p1-greedy    vs p2-balanced',                verbose);
-runBatch(N, p1DefensiveAgent,  p2BalancedAgent,   'p1-defensive vs p2-balanced',                verbose);
+// ── Baseline matchups (existing) ──────────────────────────────────────────────
+runBatch(N, p1GreedyAgent,      p2GreedyAgent,      'p1-greedy       vs p2-greedy    (baseline)', verbose);
+runBatch(N, p1DefensiveAgent,   p2GreedyAgent,      'p1-defensive    vs p2-greedy',               verbose);
+runBatch(N, p1GreedyAgent,      p2BalancedAgent,    'p1-greedy       vs p2-balanced',             verbose);
+runBatch(N, p1DefensiveAgent,   p2BalancedAgent,    'p1-defensive    vs p2-balanced',             verbose);
+
+// ── New P1 strategies vs established P2 agents ────────────────────────────────
+runBatch(N, p1ScryOracleAgent,  p2GreedyAgent,      'p1-scry-oracle  vs p2-greedy',               verbose);
+runBatch(N, p1ScryOracleAgent,  p2BalancedAgent,    'p1-scry-oracle  vs p2-balanced',             verbose);
+runBatch(N, p1BishopSweeperAgent, p2GreedyAgent,    'p1-bishop-sweep vs p2-greedy',               verbose);
+runBatch(N, p1BishopSweeperAgent, p2BalancedAgent,  'p1-bishop-sweep vs p2-balanced',             verbose);
+runBatch(N, p1TurtleAgent,      p2GreedyAgent,      'p1-turtle       vs p2-greedy',               verbose);
+runBatch(N, p1TurtleAgent,      p2BalancedAgent,    'p1-turtle       vs p2-balanced',             verbose);
+runBatch(N, p1KingHunterAgent,  p2GreedyAgent,      'p1-king-hunter  vs p2-greedy',               verbose);
+runBatch(N, p1KingHunterAgent,  p2BalancedAgent,    'p1-king-hunter  vs p2-balanced',             verbose);
+
+// ── New P2 strategies vs established P1 agents ────────────────────────────────
+runBatch(N, p1GreedyAgent,      p2PawnFloodAgent,   'p1-greedy       vs p2-pawn-flood',           verbose);
+runBatch(N, p1DefensiveAgent,   p2PawnFloodAgent,   'p1-defensive    vs p2-pawn-flood',           verbose);
+runBatch(N, p1GreedyAgent,      p2FogStalkerAgent,  'p1-greedy       vs p2-fog-stalker',          verbose);
+runBatch(N, p1DefensiveAgent,   p2FogStalkerAgent,  'p1-defensive    vs p2-fog-stalker',          verbose);
+
+// ── Key cross-matchups (new P1 vs new P2) ─────────────────────────────────────
+runBatch(N, p1TurtleAgent,      p2PawnFloodAgent,   'p1-turtle       vs p2-pawn-flood  (wall v wave)', verbose);
+runBatch(N, p1KingHunterAgent,  p2PawnFloodAgent,   'p1-king-hunter  vs p2-pawn-flood  (disrupt v flood)', verbose);
+runBatch(N, p1ScryOracleAgent,  p2FogStalkerAgent,  'p1-scry-oracle  vs p2-fog-stalker (info duel)',   verbose);
+runBatch(N, p1BishopSweeperAgent, p2FogStalkerAgent,'p1-bishop-sweep vs p2-fog-stalker (speed v search)', verbose);
