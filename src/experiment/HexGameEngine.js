@@ -181,7 +181,7 @@ export function checkWin(board, foundArtifacts) {
     if (e.player === 1 && e.piece === 'K') { p1King = true; break; }
   }
   if (!p1King) return { winner: 2, reason: "Player 2 captured the King!" };
-  if (foundArtifacts >= 3) return { winner: 1, reason: "All artifacts found!" };
+  if (foundArtifacts >= 2) return { winner: 1, reason: "All artifacts found!" };
   return null;
 }
 
@@ -208,6 +208,9 @@ export function buildInitialState() {
 
   // Player 1 — south (high r)
   board.set(hexKey(0, 8),   { piece: 'K', player: 1 });
+  board.set(hexKey(-2, 8),  { piece: 'N', player: 1 });
+  board.set(hexKey(-1, 7),  { piece: 'P', player: 1 });
+  board.set(hexKey(1, 7),   { piece: 'P', player: 1 });
 
   // Player 2 — north (low r)
   board.set(hexKey(0, -8),  { piece: 'K', player: 2 });
@@ -245,7 +248,7 @@ export function buildInitialState() {
     const [, r] = parseKey(k);
     return Math.abs(r) <= 4 && !occupied.has(k) && !terrain.has(k);
   });
-  const artifacts = new Set(pickRandom(candidates, 3));
+  const artifacts = new Set(pickRandom(candidates, 2));
 
   return { hexGrid, board, artifacts, terrain };
 }

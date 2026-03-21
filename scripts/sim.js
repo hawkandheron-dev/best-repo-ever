@@ -217,6 +217,105 @@ function p2GreedyAgent(state) {
   return randomAgent(state);
 }
 
+// ── P1 defensive agent ────────────────────────────────────────────────────────
+// Like p1Greedy but switches to evasion when any P2 piece is within
+// THREAT_DIST hexes of P1's king. In defensive mode it moves the king
+// (or any piece) to maximise minimum distance from the nearest P2 piece.
+
+const THREAT_DIST = 5;
+
+function p1DefensiveAgent(state) {
+  const player = 1;
+
+  // Find P1 king
+  let kingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { kingKey = key; break; }
+  }
+
+  if (kingKey) {
+    const [kq, kr] = parseKey(kingKey);
+    let minThreat = Infinity;
+    for (const [, e] of state.board) {
+      if (e.player !== 2 || e.isBridge) continue;
+      // e has no key here — iterate differently
+    }
+    // Re-iterate with key
+    for (const [key, e] of state.board) {
+      if (e.player !== 2 || e.isBridge) continue;
+      const [q, r] = parseKey(key);
+      minThreat = Math.min(minThreat, hexDist(kq, kr, q, r));
+    }
+
+    if (minThreat <= THREAT_DIST) {
+      // Defensive: move any piece to maximise distance from nearest P2 piece
+      const movable = [...state.board.entries()].filter(
+        ([k, e]) => e.player === player && !e.isBridge &&
+          getLegalMoves(k, state.board, player, state.terrain).length > 0
+      );
+
+      let bestMove = null, bestDist = -Infinity;
+      for (const [fromKey] of movable) {
+        const moves = getLegalMoves(fromKey, state.board, player, state.terrain);
+        for (const toKey of moves) {
+          const [tq, tr] = parseKey(toKey);
+          let minP2 = Infinity;
+          for (const [key, e] of state.board) {
+            if (e.player !== 2 || e.isBridge) continue;
+            const [q, r] = parseKey(key);
+            minP2 = Math.min(minP2, hexDist(tq, tr, q, r));
+          }
+          if (minP2 > bestDist) { bestDist = minP2; bestMove = { fromKey, toKey }; }
+        }
+      }
+
+      if (bestMove) {
+        let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+        s = dispatch(s, { type: SELECT_PIECE, key: bestMove.fromKey });
+        return dispatch(s, { type: SELECT_DESTINATION, key: bestMove.toKey });
+      }
+    }
+  }
+
+  return p1GreedyAgent(state);
+}
+
+// ── P2 balanced agent ─────────────────────────────────────────────────────────
+// Like p2Greedy but also adds pieces strategically: if P2 has fewer than 5
+// pieces and P1's king is still far away, place a Knight on the hex closest
+// to P1's king rather than advancing immediately.
+
+function p2BalancedAgent(state) {
+  const player = 2;
+
+  let p1KingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { p1KingKey = key; break; }
+  }
+  if (!p1KingKey) return randomAgent(state);
+  const [kq, kr] = parseKey(p1KingKey);
+
+  const pieceCount = [...state.board.values()].filter(e => e.player === 2 && !e.isBridge).length;
+  const placements = getPlacementTargets(state.board, player, state.hexGrid, state.terrain);
+
+  if (pieceCount < 5 && placements.length > 0) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'N' });
+    if (s.legalMoves.length > 0) {
+      // Place on the available hex closest to P1 king
+      let bestHex = null, bestDist = Infinity;
+      for (const hex of s.legalMoves) {
+        const [hq, hr] = parseKey(hex);
+        const d = hexDist(hq, hr, kq, kr);
+        if (d < bestDist) { bestDist = d; bestHex = hex; }
+      }
+      return dispatch(s, { type: SELECT_DESTINATION, key: bestHex });
+    }
+  }
+
+  return p2GreedyAgent(state);
+}
+
 // ── Game runner ───────────────────────────────────────────────────────────────
 
 const MAX_ACTIONS = 600; // safety cap — prevents truly infinite games
@@ -291,11 +390,13 @@ const verbose = args.includes('--verbose');
 console.log(`\nHex Game AI Simulation`);
 console.log(`Games per matchup: ${N}`);
 console.log(`\nAgents:`);
-console.log(`  random     — uniform random action selection`);
-console.log(`  p1-greedy  — P1 always excavates, then moves toward artifacts`);
-console.log(`  p2-greedy  — P2 captures king if reachable, else closes distance`);
+console.log(`  random       — uniform random action selection`);
+console.log(`  p1-greedy    — P1 always excavates, then moves toward artifacts`);
+console.log(`  p1-defensive — p1-greedy + evades when P2 is within ${THREAT_DIST} hexes of king`);
+console.log(`  p2-greedy    — P2 captures king if reachable, else closes distance`);
+console.log(`  p2-balanced  — p2-greedy + adds a Knight when piece count < 5`);
 
-runBatch(N, randomAgent,    randomAgent,    'random vs random',         verbose);
-runBatch(N, p1GreedyAgent,  randomAgent,    'p1-greedy vs p2-random',   verbose);
-runBatch(N, randomAgent,    p2GreedyAgent,  'p1-random vs p2-greedy',   verbose);
-runBatch(N, p1GreedyAgent,  p2GreedyAgent,  'p1-greedy vs p2-greedy',   verbose);
+runBatch(N, p1GreedyAgent,     p2GreedyAgent,     'p1-greedy    vs p2-greedy    (baseline)',    verbose);
+runBatch(N, p1DefensiveAgent,  p2GreedyAgent,     'p1-defensive vs p2-greedy',                  verbose);
+runBatch(N, p1GreedyAgent,     p2BalancedAgent,   'p1-greedy    vs p2-balanced',                verbose);
+runBatch(N, p1DefensiveAgent,  p2BalancedAgent,   'p1-defensive vs p2-balanced',                verbose);
