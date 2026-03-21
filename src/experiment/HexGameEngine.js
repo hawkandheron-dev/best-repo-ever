@@ -254,18 +254,35 @@ export function buildInitialState() {
   const hexGrid = buildHexGrid();
   const board = new Map();
 
-  // Player 1 — south (high r)
-  board.set(hexKey(0, 8),   { piece: 'K', player: 1 });
+  // Randomise starting positions ────────────────────────────────────────────
+  const P2_COMPANION = [[2, 0], [-1, 1], [1, 1]]; // offsets from P2 King
 
-  // Player 2 — north (low r)
-  board.set(hexKey(0, -8),  { piece: 'K', player: 2 });
-  board.set(hexKey(2, -8),  { piece: 'N', player: 2 });
-  board.set(hexKey(-1, -7), { piece: 'P', player: 2 });
-  board.set(hexKey(1, -7),  { piece: 'P', player: 2 });
+  // P1: King only — southern outer zone (r ≥ 7, |q| ≤ 5)
+  const p1Candidates = [...hexGrid].filter(k => {
+    const [q, r] = parseKey(k);
+    return r >= 7 && Math.abs(q) <= 5;
+  });
+  const [p1Key] = pickRandom(p1Candidates, 1);
+  const [p1q, p1r] = parseKey(p1Key);
+  board.set(p1Key, { piece: 'K', player: 1 });
 
-  // Protected zones: radius-3 around each starting cluster — no terrain placed there
+  // P2: King + companions — northern outer zone (r ≤ -7, |q| ≤ 5)
+  // Filter to positions where all companion hexes are also on the grid
+  const p2Candidates = [...hexGrid].filter(k => {
+    const [q, r] = parseKey(k);
+    if (r > -7 || Math.abs(q) > 5) return false;
+    return P2_COMPANION.every(([dq, dr]) => hexGrid.has(hexKey(q + dq, r + dr)));
+  });
+  const [p2Key] = pickRandom(p2Candidates, 1);
+  const [p2q, p2r] = parseKey(p2Key);
+  board.set(p2Key,                    { piece: 'K', player: 2 });
+  board.set(hexKey(p2q + 2, p2r),     { piece: 'N', player: 2 });
+  board.set(hexKey(p2q - 1, p2r + 1), { piece: 'P', player: 2 });
+  board.set(hexKey(p2q + 1, p2r + 1), { piece: 'P', player: 2 });
+
+  // Protected zones: radius-3 around each King — no terrain placed there
   const protectedZone = new Set(board.keys());
-  for (const [sq, sr] of [[0, 8], [0, -8]]) {
+  for (const [sq, sr] of [[p1q, p1r], [p2q, p2r]]) {
     for (const k of hexGrid) {
       const [q, r] = parseKey(k);
       if (hexDist(q, r, sq, sr) <= 3) protectedZone.add(k);

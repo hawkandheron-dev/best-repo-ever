@@ -252,16 +252,20 @@ export function HexBoard() {
             const [q, r] = parseKey(fromKey);
             const { x, y } = hexToPixel(q, r, HEX_SIZE);
             const angle = SCRY_DIRECTION_ANGLES[directionIndex];
+            const rad = (angle * Math.PI) / 180;
+            const offsetDist = HEX_SIZE * 0.55;
+            const tx = x + offsetDist * Math.cos(rad);
+            const ty = y + offsetDist * Math.sin(rad);
             return (
               <text
                 key={idx}
-                x={x} y={y + 5}
+                x={tx} y={ty + 5}
                 textAnchor="middle"
-                fontSize={14}
+                fontSize={12}
                 fill="#a0d0ff"
                 pointerEvents="none"
                 fontFamily="monospace"
-                transform={`rotate(${angle}, ${x}, ${y})`}
+                transform={`rotate(${angle}, ${tx}, ${ty})`}
               >
                 {'›'.repeat(caretCount)}
               </text>
