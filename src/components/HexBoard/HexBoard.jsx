@@ -1,12 +1,15 @@
 import { useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { useHexGame } from '../../experiment/hexGameContext';
-import { SELECT_PIECE, SELECT_DESTINATION, EXCAVATE_HEX } from '../../experiment/hexGameActions';
+import { SELECT_PIECE, SELECT_DESTINATION, EXCAVATE_HEX, SCRY_FROM } from '../../experiment/hexGameActions';
 import { hexToPixel, hexPolygonPoints, parseKey, buildHexGrid } from '../../experiment/hexMath';
 import { getP2VisibleHexes, terrainOf } from '../../experiment/HexGameEngine';
 import styles from './HexBoard.module.css';
 
 const HEX_SIZE = 28;
 const ALL_HEX_KEYS = [...buildHexGrid()];
+
+// SVG rotation angle (degrees) for each entry in DIRECTIONS [E,NE,NW,W,SW,SE]
+const SCRY_DIRECTION_ANGLES = [0, -60, -120, 180, 120, 60];
 
 const PIECE_GLYPHS = {
   1: { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙' },
@@ -99,7 +102,7 @@ export function HexBoard() {
   const {
     board, terrain, excavated, artifacts,
     turn, phase, selectedPiece, legalMoves,
-    winner, countdown, handoff,
+    winner, countdown, handoff, scryResults,
   } = state;
 
   const containerRef = useRef(null);
@@ -147,6 +150,7 @@ export function HexBoard() {
     if (phase === 'select-destination' || phase === 'select-add-hex')
                                      dispatch({ type: SELECT_DESTINATION, key });
     if (phase === 'select-excavate') dispatch({ type: EXCAVATE_HEX, key });
+    if (phase === 'select-scry')     dispatch({ type: SCRY_FROM, key });
   }, [winner, countdown, handoff, phase, dispatch]);
 
   // ── Hex fill / stroke ────────────────────────────────────────────────────
@@ -240,6 +244,27 @@ export function HexBoard() {
                   <circle cx={x} cy={y} r={5} fill="#40b040" opacity={0.5} pointerEvents="none" />
                 )}
               </g>
+            );
+          })}
+
+          {/* Scry result overlays */}
+          {scryResults.map(({ fromKey, directionIndex, caretCount }, idx) => {
+            const [q, r] = parseKey(fromKey);
+            const { x, y } = hexToPixel(q, r, HEX_SIZE);
+            const angle = SCRY_DIRECTION_ANGLES[directionIndex];
+            return (
+              <text
+                key={idx}
+                x={x} y={y + 5}
+                textAnchor="middle"
+                fontSize={14}
+                fill="#a0d0ff"
+                pointerEvents="none"
+                fontFamily="monospace"
+                transform={`rotate(${angle}, ${x}, ${y})`}
+              >
+                {'›'.repeat(caretCount)}
+              </text>
             );
           })}
         </g>

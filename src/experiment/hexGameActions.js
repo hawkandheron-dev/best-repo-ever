@@ -3,6 +3,7 @@ export const SELECT_PIECE      = 'SELECT_PIECE';      // { key }
 export const SELECT_DESTINATION = 'SELECT_DESTINATION'; // { key }
 export const SELECT_ADD_PIECE  = 'SELECT_ADD_PIECE';  // { pieceType: 'Q'|'R'|'B'|'N'|'P' }
 export const EXCAVATE_HEX      = 'EXCAVATE_HEX';      // { key }
+export const SCRY_FROM         = 'SCRY_FROM';          // { key }
 export const CANCEL_ACTION     = 'CANCEL_ACTION';
 export const END_TURN          = 'END_TURN';
 export const TICK_COUNTDOWN    = 'TICK_COUNTDOWN';

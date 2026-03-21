@@ -6,7 +6,7 @@
 
 import {
   DIRECTIONS, BISHOP_DIRECTIONS, KNIGHT_MOVES,
-  hexKey, parseKey, isValid, buildHexGrid, hexDist,
+  hexKey, parseKey, isValid, buildHexGrid, hexDist, hexToPixel,
 } from './hexMath';
 
 // ── Terrain helpers ───────────────────────────────────────────────────────────
@@ -150,6 +150,54 @@ export function getExcavationTargets(board, player, hexGrid) {
   return [...targets];
 }
 
+// ── Scry ──────────────────────────────────────────────────────────────────────
+
+export function getScryTargets(board) {
+  const targets = [];
+  for (const [key, entry] of board) {
+    if (entry.player !== 1 || entry.isBridge) continue;
+    targets.push(key);
+  }
+  return targets;
+}
+
+// Returns { fromKey, directionIndex, caretCount } or null if no unfound artifacts.
+// directionIndex is an index into DIRECTIONS (0=E,1=NE,2=NW,3=W,4=SW,5=SE).
+export function computeScryResult(fromKey, artifacts, excavated) {
+  const unfound = [...artifacts].filter(k => !excavated.has(k));
+  if (unfound.length === 0) return null;
+
+  const [fq, fr] = parseKey(fromKey);
+
+  // Find nearest unfound artifact by hex distance
+  let nearestKey = unfound[0], nearestDist = Infinity;
+  for (const ak of unfound) {
+    const [aq, ar] = parseKey(ak);
+    const d = hexDist(fq, fr, aq, ar);
+    if (d < nearestDist) { nearestDist = d; nearestKey = ak; }
+  }
+
+  // Pixel vector from scrying piece to nearest artifact
+  const fp = hexToPixel(fq, fr, 1);
+  const [aq, ar] = parseKey(nearestKey);
+  const ap = hexToPixel(aq, ar, 1);
+  const dx = ap.x - fp.x, dy = ap.y - fp.y;
+
+  // Snap to nearest of 6 DIRECTIONS using dot product against their pixel vectors
+  let bestDir = 0, bestDot = -Infinity;
+  for (let i = 0; i < DIRECTIONS.length; i++) {
+    const [dq, dr] = DIRECTIONS[i];
+    const dp = hexToPixel(dq, dr, 1);
+    const dot = dx * dp.x + dy * dp.y;
+    if (dot > bestDot) { bestDot = dot; bestDir = i; }
+  }
+
+  // Caret count based on distance
+  const caretCount = nearestDist <= 3 ? 3 : nearestDist <= 7 ? 2 : 1;
+
+  return { fromKey, directionIndex: bestDir, caretCount };
+}
+
 // ── Placement ─────────────────────────────────────────────────────────────────
 
 export function getPlacementTargets(board, player, hexGrid, terrain) {
@@ -181,7 +229,7 @@ export function checkWin(board, foundArtifacts) {
     if (e.player === 1 && e.piece === 'K') { p1King = true; break; }
   }
   if (!p1King) return { winner: 2, reason: "Player 2 captured the King!" };
-  if (foundArtifacts >= 2) return { winner: 1, reason: "All artifacts found!" };
+  if (foundArtifacts >= 3) return { winner: 1, reason: "All artifacts found!" };
   return null;
 }
 
@@ -208,9 +256,6 @@ export function buildInitialState() {
 
   // Player 1 — south (high r)
   board.set(hexKey(0, 8),   { piece: 'K', player: 1 });
-  board.set(hexKey(-2, 8),  { piece: 'N', player: 1 });
-  board.set(hexKey(-1, 7),  { piece: 'P', player: 1 });
-  board.set(hexKey(1, 7),   { piece: 'P', player: 1 });
 
   // Player 2 — north (low r)
   board.set(hexKey(0, -8),  { piece: 'K', player: 2 });
@@ -248,7 +293,7 @@ export function buildInitialState() {
     const [, r] = parseKey(k);
     return Math.abs(r) <= 4 && !occupied.has(k) && !terrain.has(k);
   });
-  const artifacts = new Set(pickRandom(candidates, 2));
+  const artifacts = new Set(pickRandom(candidates, 3));
 
   return { hexGrid, board, artifacts, terrain };
 }

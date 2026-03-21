@@ -10,6 +10,7 @@ const PHASE_PROMPTS = {
   'select-add-piece':   null, // handled by AddPiecePanel
   'select-add-hex':     'Tap a hex to place the piece',
   'select-excavate':    'Tap a hex to excavate',
+  'select-scry':        'Tap one of your pieces to scry',
 };
 
 export function ActionPanel() {
@@ -65,13 +66,22 @@ export function ActionPanel() {
             Add Piece
           </button>
           {turn === 1 && (
-            <button
-              className={styles.actionBtn}
-              disabled={actionsLeft <= 0}
-              onClick={() => dispatch({ type: START_ACTION, actionType: 'excavate' })}
-            >
-              Excavate
-            </button>
+            <>
+              <button
+                className={styles.actionBtn}
+                disabled={actionsLeft <= 0}
+                onClick={() => dispatch({ type: START_ACTION, actionType: 'excavate' })}
+              >
+                Excavate
+              </button>
+              <button
+                className={styles.actionBtn}
+                disabled={actionsLeft <= 0}
+                onClick={() => dispatch({ type: START_ACTION, actionType: 'scry' })}
+              >
+                Scry
+              </button>
+            </>
           )}
         </div>
       )}

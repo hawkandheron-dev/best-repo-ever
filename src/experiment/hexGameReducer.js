@@ -1,9 +1,9 @@
 import {
   START_ACTION, SELECT_PIECE, SELECT_DESTINATION, SELECT_ADD_PIECE,
-  EXCAVATE_HEX, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, NEW_GAME,
+  EXCAVATE_HEX, SCRY_FROM, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, NEW_GAME,
 } from './hexGameActions';
 import {
-  getLegalMoves, getPlacementTargets, getExcavationTargets,
+  getLegalMoves, getPlacementTargets, getExcavationTargets, getScryTargets, computeScryResult,
   checkWin, buildInitialState, moveCost, terrainOf,
 } from './HexGameEngine';
 
@@ -28,6 +28,7 @@ export function buildInitialGameState() {
     winReason: null,
     countdown: null,
     handoff: false,
+    scryResults: [],
   };
 }
 
@@ -45,6 +46,10 @@ export function hexGameReducer(state, action) {
         return { ...state, phase: 'select-excavate', pendingAction: 'excavate', legalMoves: targets };
       }
       if (actionType === 'add')      return { ...state, phase: 'select-add-piece', pendingAction: 'add' };
+      if (actionType === 'scry') {
+        const targets = getScryTargets(state.board);
+        return { ...state, phase: 'select-scry', pendingAction: 'scry', legalMoves: targets };
+      }
       return state;
     }
 
@@ -208,6 +213,29 @@ export function hexGameReducer(state, action) {
       return nextState;
     }
 
+    case SCRY_FROM: {
+      if (state.phase !== 'select-scry') return state;
+      const { key } = action;
+      if (!state.legalMoves.includes(key)) return state;
+
+      const result = computeScryResult(key, state.artifacts, state.excavated);
+      const newScryResults = result
+        ? [...state.scryResults, result]
+        : state.scryResults;
+
+      const nextActionsLeft = state.actionsLeft - 1;
+      const nextState = {
+        ...state,
+        scryResults: newScryResults,
+        pendingAction: null,
+        actionsLeft: nextActionsLeft,
+        legalMoves: [],
+        phase: 'select-action',
+      };
+      if (nextActionsLeft <= 0) return startEndTurn(nextState);
+      return nextState;
+    }
+
     case CANCEL_ACTION:
       return {
         ...state,
@@ -252,6 +280,7 @@ export function hexGameReducer(state, action) {
         pendingAction: null,
         pendingAddPiece: null,
         pendingPawnCount: 0,
+        scryResults: [],
       };
     }
 

@@ -16,7 +16,7 @@ export function ExperimentScreen({ onBack }) {
         <div className={styles.headerInfo}>
           <span className={styles.turnLabel}>Player {turn}'s turn</span>
           <span className={styles.artifactCount}>
-            ★ {foundArtifacts}/2 artifacts
+            ★ {foundArtifacts}/3 artifacts
           </span>
         </div>
         <button className={styles.newGameBtn} onClick={() => dispatch({ type: NEW_GAME })}>
@@ -39,7 +39,7 @@ export function ExperimentScreen({ onBack }) {
             <ul>
               <li>You see the whole board. Player 2 is in fog.</li>
               <li>Up to 2 actions: Move, Add a piece, or Excavate.</li>
-              <li>Excavate any hex to flip it — find all 2 ★ artifacts to win.</li>
+              <li>Excavate any hex to flip it — find all 3 ★ artifacts to win.</li>
               <li>Pawns: add 2 for 1 action. Queens can't move the turn added.</li>
             </ul>
           </div>
