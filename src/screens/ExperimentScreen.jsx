@@ -1,12 +1,14 @@
 import { useHexGame } from '../experiment/hexGameContext';
-import { NEW_GAME, DISMISS_HANDOFF } from '../experiment/hexGameActions';
+import { NEW_GAME, DISMISS_HANDOFF, DISMISS_CAPTURE } from '../experiment/hexGameActions';
 import { HexBoard } from '../components/HexBoard/HexBoard';
 import { ActionPanel } from '../components/ActionPanel/ActionPanel';
 import styles from './ExperimentScreen.module.css';
 
+const PIECE_NAMES = { K: 'King', Q: 'Queen', R: 'Rook', B: 'Bishop', N: 'Knight', P: 'Pawn' };
+
 export function ExperimentScreen({ onBack }) {
   const { state, dispatch } = useHexGame();
-  const { turn, foundArtifacts, winner, winReason, countdown, handoff, phase } = state;
+  const { turn, foundArtifacts, winner, winReason, countdown, handoff, phase, captureNotification } = state;
 
   return (
     <div className={styles.screen}>
@@ -79,6 +81,19 @@ export function ExperimentScreen({ onBack }) {
           </div>
           <div className={styles.handoffPlayer}>Player {turn}</div>
           <p className={styles.handoffHint}>Tap anywhere to continue</p>
+        </div>
+      )}
+
+      {/* ── Capture notification overlay ────────────────────────────────── */}
+      {captureNotification && !handoff && (
+        <div className={styles.overlay} onClick={() => dispatch({ type: DISMISS_CAPTURE })}>
+          <div className={styles.handoffTitle}>Pieces lost</div>
+          {captureNotification.captures.map((c, i) => (
+            <p key={i} className={styles.handoffHint}>
+              {PIECE_NAMES[c.capturedPiece]} captured by enemy {PIECE_NAMES[c.byPiece]}
+            </p>
+          ))}
+          <p className={styles.handoffHint} style={{ marginTop: '1rem', opacity: 0.5 }}>Tap to continue</p>
         </div>
       )}
 

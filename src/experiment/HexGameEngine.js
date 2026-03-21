@@ -6,7 +6,7 @@
 
 import {
   DIRECTIONS, BISHOP_DIRECTIONS, KNIGHT_MOVES,
-  hexKey, parseKey, isValid, buildHexGrid, hexDist, hexToPixel,
+  hexKey, parseKey, isValid, buildHexGrid, hexDist,
 } from './hexMath';
 
 // ── Terrain helpers ───────────────────────────────────────────────────────────
@@ -177,19 +177,15 @@ export function computeScryResult(fromKey, artifacts, excavated) {
     if (d < nearestDist) { nearestDist = d; nearestKey = ak; }
   }
 
-  // Pixel vector from scrying piece to nearest artifact
-  const fp = hexToPixel(fq, fr, 1);
   const [aq, ar] = parseKey(nearestKey);
-  const ap = hexToPixel(aq, ar, 1);
-  const dx = ap.x - fp.x, dy = ap.y - fp.y;
 
-  // Snap to nearest of 6 DIRECTIONS using dot product against their pixel vectors
-  let bestDir = 0, bestDot = -Infinity;
+  // Pick the hex direction that makes the most progress toward the artifact
+  // (i.e. the neighbor that is closest to the artifact in hex distance).
+  let bestDir = 0, bestDist = Infinity;
   for (let i = 0; i < DIRECTIONS.length; i++) {
     const [dq, dr] = DIRECTIONS[i];
-    const dp = hexToPixel(dq, dr, 1);
-    const dot = dx * dp.x + dy * dp.y;
-    if (dot > bestDot) { bestDot = dot; bestDir = i; }
+    const d = hexDist(fq + dq, fr + dr, aq, ar);
+    if (d < bestDist) { bestDist = d; bestDir = i; }
   }
 
   // Caret count based on distance

@@ -8,4 +8,5 @@ export const CANCEL_ACTION     = 'CANCEL_ACTION';
 export const END_TURN          = 'END_TURN';
 export const TICK_COUNTDOWN    = 'TICK_COUNTDOWN';
 export const DISMISS_HANDOFF   = 'DISMISS_HANDOFF';
+export const DISMISS_CAPTURE   = 'DISMISS_CAPTURE';
 export const NEW_GAME          = 'NEW_GAME';

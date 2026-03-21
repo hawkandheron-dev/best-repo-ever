@@ -102,7 +102,7 @@ export function HexBoard() {
   const {
     board, terrain, excavated, artifacts,
     turn, phase, selectedPiece, legalMoves,
-    winner, countdown, handoff, scryResults,
+    winner, countdown, handoff, scryResults, gameKey,
   } = state;
 
   const containerRef = useRef(null);
@@ -113,8 +113,20 @@ export function HexBoard() {
     const el = containerRef.current;
     if (!el) return;
     const { width, height } = el.getBoundingClientRect();
-    setPanOffset({ x: width / 2, y: height / 2 - 60 });
-  }, []);
+    // Center view on P1's king so it's always visible regardless of random start position
+    let p1KingKey = null;
+    for (const [key, entry] of board) {
+      if (entry.player === 1 && entry.piece === 'K') { p1KingKey = key; break; }
+    }
+    if (p1KingKey) {
+      const [kq, kr] = parseKey(p1KingKey);
+      const { x: kx, y: ky } = hexToPixel(kq, kr, HEX_SIZE);
+      // Place P1's king ~70% down the screen so the board extends upward toward P2
+      setPanOffset({ x: width / 2 - kx, y: height * 0.7 - ky });
+    } else {
+      setPanOffset({ x: width / 2, y: height / 2 - 60 });
+    }
+  }, [gameKey]); // re-center whenever a new game starts
 
   const fogActive = turn === 2 && !winner;
   const visibleHexes = fogActive ? getP2VisibleHexes(board) : null;

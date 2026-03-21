@@ -1,6 +1,6 @@
 import {
   START_ACTION, SELECT_PIECE, SELECT_DESTINATION, SELECT_ADD_PIECE,
-  EXCAVATE_HEX, SCRY_FROM, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, NEW_GAME,
+  EXCAVATE_HEX, SCRY_FROM, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, DISMISS_CAPTURE, NEW_GAME,
 } from './hexGameActions';
 import {
   getLegalMoves, getPlacementTargets, getExcavationTargets, getScryTargets, computeScryResult,
@@ -29,13 +29,16 @@ export function buildInitialGameState() {
     countdown: null,
     handoff: false,
     scryResults: [],
+    pendingCaptures: [],
+    captureNotification: null,
+    gameKey: 0,
   };
 }
 
 export function hexGameReducer(state, action) {
   switch (action.type) {
     case NEW_GAME:
-      return buildInitialGameState();
+      return { ...buildInitialGameState(), gameKey: state.gameKey + 1 };
 
     case START_ACTION: {
       if (state.phase !== 'select-action' || state.actionsLeft <= 0) return state;
@@ -71,7 +74,12 @@ export function hexGameReducer(state, action) {
           return state;
         }
 
-        // Execute move
+        // Execute move — check for capture first
+        const capturedEntry = state.board.get(key);
+        const newPendingCaptures = capturedEntry
+          ? [...state.pendingCaptures, { capturedPiece: capturedEntry.piece, capturedPlayer: capturedEntry.player, byPiece: state.board.get(state.selectedPiece).piece }]
+          : state.pendingCaptures;
+
         const newBoard = new Map(state.board);
         const pieceEntry = { ...newBoard.get(state.selectedPiece) };
         delete pieceEntry.justAdded;
@@ -106,6 +114,7 @@ export function hexGameReducer(state, action) {
           pendingAction: null,
           actionsLeft: nextActionsLeft,
           phase: 'select-action',
+          pendingCaptures: newPendingCaptures,
         };
 
         const win = checkWin(newBoard, nextState.foundArtifacts);
@@ -268,6 +277,9 @@ export function hexGameReducer(state, action) {
         delete entry.justAdded;
         newBoard.set(k, entry);
       }
+      // Show capture notification to the incoming player about their lost pieces
+      const theirCaptures = state.pendingCaptures.filter(c => c.capturedPlayer === nextTurn);
+      const captureNotification = theirCaptures.length > 0 ? { captures: theirCaptures } : null;
       return {
         ...state,
         board: newBoard,
@@ -281,8 +293,13 @@ export function hexGameReducer(state, action) {
         pendingAddPiece: null,
         pendingPawnCount: 0,
         scryResults: [],
+        pendingCaptures: [],
+        captureNotification,
       };
     }
+
+    case DISMISS_CAPTURE:
+      return { ...state, captureNotification: null };
 
     default:
       return state;
