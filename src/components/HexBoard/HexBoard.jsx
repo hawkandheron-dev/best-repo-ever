@@ -110,7 +110,7 @@ function findKing(board, player) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function HexBoard() {
+export function HexBoard({ showAllArtifacts = false }) {
   const { state, dispatch } = useHexGame();
   const {
     board, terrain, excavated, artifacts,
@@ -327,7 +327,7 @@ export function HexBoard() {
             const t = terrainOf(key, terrain);
             const piece = board.get(key);
             const isArtifactFound = artifacts.has(key) && excavated.has(key);
-            const isArtifactRevealed = fogLifted && artifacts.has(key) && !excavated.has(key);
+            const isArtifactRevealed = (fogLifted || showAllArtifacts) && artifacts.has(key) && !excavated.has(key);
             const isExcavatedEmpty = excavated.has(key) && !artifacts.has(key);
             const isLegalEmpty = legalSet.has(key) && !piece;
             const isMountain = t === 'mountain';

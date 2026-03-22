@@ -7,6 +7,8 @@ import {
   checkWin, buildInitialState, moveCost, terrainOf,
 } from './HexGameEngine';
 
+export const FOG_LIFT_TURN = 20; // fog lifts when turnCount reaches this value
+
 export function buildInitialGameState() {
   const { hexGrid, board, artifacts, terrain } = buildInitialState();
   return {

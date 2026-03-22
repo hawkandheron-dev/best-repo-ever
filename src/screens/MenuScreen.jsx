@@ -16,6 +16,11 @@ export function MenuScreen({ onSelect }) {
           <span className={styles.label}>Experiment</span>
           <span className={styles.desc}>Hex grid · Fog of war · Artifacts</span>
         </button>
+        <button className={`${styles.btn} ${styles.btnTest}`} onClick={() => onSelect('test')}>
+          <span className={styles.icon}>🧪</span>
+          <span className={styles.label}>Test Mode</span>
+          <span className={styles.desc}>Experiment + developer options</span>
+        </button>
       </div>
     </div>
   );

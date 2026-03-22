@@ -1,14 +1,25 @@
+import { useState } from 'react';
 import { useHexGame } from '../experiment/hexGameContext';
 import { NEW_GAME, DISMISS_HANDOFF, DISMISS_CAPTURE, DISMISS_FOG_NOTIFICATION } from '../experiment/hexGameActions';
+import { FOG_LIFT_TURN } from '../experiment/hexGameReducer';
 import { HexBoard } from '../components/HexBoard/HexBoard';
 import { ActionPanel } from '../components/ActionPanel/ActionPanel';
 import styles from './ExperimentScreen.module.css';
 
 const PIECE_NAMES = { K: 'King', Q: 'Queen', R: 'Rook', B: 'Bishop', N: 'Knight', P: 'Pawn' };
 
-export function ExperimentScreen({ onBack }) {
+export function ExperimentScreen({ onBack, testMode = false }) {
   const { state, dispatch } = useHexGame();
-  const { turn, foundArtifacts, winner, winReason, countdown, handoff, phase, captureNotification, fogLiftPending } = state;
+  const {
+    turn, foundArtifacts, winner, winReason,
+    countdown, handoff, phase, captureNotification,
+    fogLiftPending, fogLifted, turnCount,
+  } = state;
+
+  // Test mode options — easily extended with more flags later
+  const [testOpts, setTestOpts] = useState({ showArtifacts: false });
+
+  const turnsUntilReveal = FOG_LIFT_TURN - turnCount;
 
   return (
     <div className={styles.screen}>
@@ -20,14 +31,34 @@ export function ExperimentScreen({ onBack }) {
           <span className={styles.artifactCount}>
             ★ {foundArtifacts}/3 artifacts
           </span>
+          {!fogLifted && !winner && (
+            <span className={styles.fogCountdown}>
+              {turnsUntilReveal} {turnsUntilReveal === 1 ? 'turn' : 'turns'} until ALL IS REVEALED
+            </span>
+          )}
         </div>
         <button className={styles.newGameBtn} onClick={() => dispatch({ type: NEW_GAME })}>
           New
         </button>
       </div>
 
+      {/* ── Test mode controls bar ───────────────────────────────────────── */}
+      {testMode && (
+        <div className={styles.testBar}>
+          <span className={styles.testLabel}>🧪 Test</span>
+          <label className={styles.testToggle}>
+            <input
+              type="checkbox"
+              checked={testOpts.showArtifacts}
+              onChange={e => setTestOpts(o => ({ ...o, showArtifacts: e.target.checked }))}
+            />
+            Reveal artifacts
+          </label>
+        </div>
+      )}
+
       {/* ── Hex Board ───────────────────────────────────────────────────── */}
-      <HexBoard />
+      <HexBoard showAllArtifacts={testMode && testOpts.showArtifacts} />
 
       {/* ── Action Panel ────────────────────────────────────────────────── */}
       {phase !== 'game-over' && <ActionPanel />}

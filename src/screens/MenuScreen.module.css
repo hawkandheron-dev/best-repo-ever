@@ -79,3 +79,22 @@
 .btnExperiment .icon {
   color: #a78bfa;
 }
+
+.btnTest {
+  border-color: #2a3a2a;
+  background: #101a10;
+  opacity: 0.85;
+}
+
+.btnTest:active {
+  background: #182618;
+  border-color: #3a5a3a;
+}
+
+.btnTest .label {
+  font-size: 1rem;
+}
+
+.btnTest .icon {
+  font-size: 1.8rem;
+}

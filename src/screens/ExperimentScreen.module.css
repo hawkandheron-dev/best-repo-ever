@@ -48,6 +48,46 @@
   color: #f0a020;
 }
 
+.fogCountdown {
+  font-size: 0.65rem;
+  color: #6060a0;
+  letter-spacing: 0.02em;
+}
+
+/* ── Test mode bar ────────────────────────────────────────────────────── */
+.testBar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.3rem 0.75rem;
+  background: #0a0a18;
+  border-bottom: 1px solid #2a1a4a;
+  flex-shrink: 0;
+}
+
+.testLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #7a4ab0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.testToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #a080d0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.testToggle input[type="checkbox"] {
+  accent-color: #7a4ab0;
+  cursor: pointer;
+}
+
 .newGameBtn {
   background: none;
   border: 1px solid #2a2a44;
