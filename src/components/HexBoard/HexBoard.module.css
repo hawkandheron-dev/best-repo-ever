@@ -18,3 +18,34 @@
 .boardGroup {
   transform: translate(50%, 50%);
 }
+
+/* ── Zoom controls ────────────────────────────────────────────────────── */
+.zoomControls {
+  position: absolute;
+  bottom: 1rem;
+  right: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  z-index: 5;
+}
+
+.zoomControls button {
+  width: 2.2rem;
+  height: 2.2rem;
+  background: rgba(20, 20, 48, 0.88);
+  border: 1px solid #3a3a60;
+  border-radius: 8px;
+  color: #c0c0e0;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.zoomControls button:active {
+  background: rgba(60, 60, 100, 0.9);
+}

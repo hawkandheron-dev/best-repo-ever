@@ -1,6 +1,6 @@
 import {
   START_ACTION, SELECT_PIECE, SELECT_DESTINATION, SELECT_ADD_PIECE,
-  EXCAVATE_HEX, SCRY_FROM, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, DISMISS_CAPTURE, NEW_GAME,
+  EXCAVATE_HEX, SCRY_FROM, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, DISMISS_CAPTURE, DISMISS_FOG_NOTIFICATION, NEW_GAME,
 } from './hexGameActions';
 import {
   getLegalMoves, getPlacementTargets, getExcavationTargets, getScryTargets, computeScryResult,
@@ -31,6 +31,10 @@ export function buildInitialGameState() {
     scryResults: [],
     pendingCaptures: [],
     captureNotification: null,
+    turnCount: 0,
+    fogLifted: false,
+    fogLiftPending: false,
+    handoffCount: 0,
     gameKey: 0,
   };
 }
@@ -280,6 +284,9 @@ export function hexGameReducer(state, action) {
       // Show capture notification to the incoming player about their lost pieces
       const theirCaptures = state.pendingCaptures.filter(c => c.capturedPlayer === nextTurn);
       const captureNotification = theirCaptures.length > 0 ? { captures: theirCaptures } : null;
+      // Fog lift: triggers once after 20 total half-turns
+      const newTurnCount = state.turnCount + 1;
+      const fogJustLifted = !state.fogLifted && newTurnCount >= 20;
       return {
         ...state,
         board: newBoard,
@@ -295,11 +302,18 @@ export function hexGameReducer(state, action) {
         scryResults: [],
         pendingCaptures: [],
         captureNotification,
+        turnCount: newTurnCount,
+        fogLifted: state.fogLifted || fogJustLifted,
+        fogLiftPending: fogJustLifted,
+        handoffCount: state.handoffCount + 1,
       };
     }
 
     case DISMISS_CAPTURE:
       return { ...state, captureNotification: null };
+
+    case DISMISS_FOG_NOTIFICATION:
+      return { ...state, fogLiftPending: false };
 
     default:
       return state;

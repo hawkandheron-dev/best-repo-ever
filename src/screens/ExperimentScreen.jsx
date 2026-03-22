@@ -1,5 +1,5 @@
 import { useHexGame } from '../experiment/hexGameContext';
-import { NEW_GAME, DISMISS_HANDOFF, DISMISS_CAPTURE } from '../experiment/hexGameActions';
+import { NEW_GAME, DISMISS_HANDOFF, DISMISS_CAPTURE, DISMISS_FOG_NOTIFICATION } from '../experiment/hexGameActions';
 import { HexBoard } from '../components/HexBoard/HexBoard';
 import { ActionPanel } from '../components/ActionPanel/ActionPanel';
 import styles from './ExperimentScreen.module.css';
@@ -8,7 +8,7 @@ const PIECE_NAMES = { K: 'King', Q: 'Queen', R: 'Rook', B: 'Bishop', N: 'Knight'
 
 export function ExperimentScreen({ onBack }) {
   const { state, dispatch } = useHexGame();
-  const { turn, foundArtifacts, winner, winReason, countdown, handoff, phase, captureNotification } = state;
+  const { turn, foundArtifacts, winner, winReason, countdown, handoff, phase, captureNotification, fogLiftPending } = state;
 
   return (
     <div className={styles.screen}>
@@ -77,9 +77,9 @@ export function ExperimentScreen({ onBack }) {
       {handoff && (
         <div className={styles.overlay} onClick={() => dispatch({ type: DISMISS_HANDOFF })}>
           <div className={styles.handoffTitle}>
-            Player {turn === 1 ? 2 : 1} — hand the phone to
+            Player {turn} — hand the phone to
           </div>
-          <div className={styles.handoffPlayer}>Player {turn}</div>
+          <div className={styles.handoffPlayer}>Player {turn === 1 ? 2 : 1}</div>
           <p className={styles.handoffHint}>Tap anywhere to continue</p>
         </div>
       )}
@@ -94,6 +94,18 @@ export function ExperimentScreen({ onBack }) {
             </p>
           ))}
           <p className={styles.handoffHint} style={{ marginTop: '1rem', opacity: 0.5 }}>Tap to continue</p>
+        </div>
+      )}
+
+      {/* ── Fog-lift notification overlay ───────────────────────────────── */}
+      {fogLiftPending && !captureNotification && !handoff && (
+        <div className={styles.overlay} onClick={() => dispatch({ type: DISMISS_FOG_NOTIFICATION })}>
+          <div className={styles.winnerIcon}>👁</div>
+          <div className={styles.winnerTitle}>All is revealed!</div>
+          <p className={styles.winReason}>
+            Fog of war now removed and artifact coordinates identified. Happy hunting!
+          </p>
+          <p className={styles.handoffHint}>Tap anywhere to continue</p>
         </div>
       )}
 

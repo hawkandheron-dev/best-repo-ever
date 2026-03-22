@@ -585,16 +585,18 @@ function p1KingHunterAgent(state) {
     }
   }
 
-  // March the whole formation toward P2 King
-  if (p2KingKey && movable.length > 0) {
-    const [p2q, p2r] = parseKey(p2KingKey);
+  // March toward nearest P2 non-King piece (capturing P2's King has no win-condition payoff)
+  const p2Targets = [...state.board.entries()].filter(([, e]) => e.player === 2 && !e.isBridge && e.piece !== 'K');
+  const marchTargets = p2Targets.length > 0 ? p2Targets : (p2KingKey ? [[p2KingKey]] : []);
+  if (marchTargets.length > 0 && movable.length > 0) {
     let bestMove = null, bestDist = Infinity;
     for (const [fromKey] of movable) {
       const moves = getLegalMoves(fromKey, state.board, player, state.terrain);
       for (const toKey of moves) {
         const [tq, tr] = parseKey(toKey);
-        const d = hexDist(tq, tr, p2q, p2r);
-        if (d < bestDist) { bestDist = d; bestMove = { fromKey, toKey }; }
+        let minD = Infinity;
+        for (const [pk] of marchTargets) { const [pq, pr] = parseKey(pk); minD = Math.min(minD, hexDist(tq, tr, pq, pr)); }
+        if (minD < bestDist) { bestDist = minD; bestMove = { fromKey, toKey }; }
       }
     }
     if (bestMove) {

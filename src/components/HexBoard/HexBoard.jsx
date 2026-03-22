@@ -1,12 +1,13 @@
-import { useRef, useState, useCallback, useLayoutEffect } from 'react';
+import { useRef, useState, useCallback, useLayoutEffect, useEffect } from 'react';
 import { useHexGame } from '../../experiment/hexGameContext';
 import { SELECT_PIECE, SELECT_DESTINATION, EXCAVATE_HEX, SCRY_FROM } from '../../experiment/hexGameActions';
-import { hexToPixel, hexPolygonPoints, parseKey, buildHexGrid } from '../../experiment/hexMath';
+import { hexToPixel, hexPolygonPoints, parseKey, buildHexGrid, gridBounds } from '../../experiment/hexMath';
 import { getP2VisibleHexes, terrainOf } from '../../experiment/HexGameEngine';
 import styles from './HexBoard.module.css';
 
 const HEX_SIZE = 28;
 const ALL_HEX_KEYS = [...buildHexGrid()];
+const ZOOM_STEP = 0.2;
 
 // SVG rotation angle (degrees) for each entry in DIRECTIONS [E,NE,NW,W,SW,SE]
 const SCRY_DIRECTION_ANGLES = [0, -60, -120, 180, 120, 60];
@@ -95,6 +96,18 @@ function TerrainDecoration({ x, y, terrain }) {
   return null;
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function clamp(val, min, max) { return Math.min(Math.max(val, min), max); }
+
+/** Returns [q, r] of a player's King piece, or null. */
+function findKing(board, player) {
+  for (const [key, entry] of board) {
+    if (entry.player === player && entry.piece === 'K') return parseKey(key);
+  }
+  return null;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function HexBoard() {
@@ -103,46 +116,117 @@ export function HexBoard() {
     board, terrain, excavated, artifacts,
     turn, phase, selectedPiece, legalMoves,
     winner, countdown, handoff, scryResults, gameKey,
+    fogLifted, handoffCount,
   } = state;
 
   const containerRef = useRef(null);
   const [panOffset, setPanOffset] = useState(null);
-  const dragState = useRef(null);
+  const [scale, setScale] = useState(1.0);
 
+  // Dynamic scale bounds computed once per new game from actual container size
+  const minScaleRef = useRef(0.25);
+  const maxScaleRef = useRef(1.6);
+
+  // Track previous gameKey to distinguish new-game vs turn-switch in the layout effect
+  const prevGameKey = useRef(gameKey);
+
+  // Pointer tracking for pan + pinch-to-zoom
+  const dragState = useRef(null);
+  const activePointers = useRef(new Map()); // pointerId → { x, y }
+  const pinchStartRef = useRef(null);       // { dist, scale, midX, midY, pan }
+
+  // ── Initial centering + scale bounds ───────────────────────────────────────
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const { width, height } = el.getBoundingClientRect();
-    // Center view on P1's king so it's always visible regardless of random start position
-    let p1KingKey = null;
-    for (const [key, entry] of board) {
-      if (entry.player === 1 && entry.piece === 'K') { p1KingKey = key; break; }
-    }
-    if (p1KingKey) {
-      const [kq, kr] = parseKey(p1KingKey);
-      const { x: kx, y: ky } = hexToPixel(kq, kr, HEX_SIZE);
-      // Place P1's king ~70% down the screen so the board extends upward toward P2
-      setPanOffset({ x: width / 2 - kx, y: height * 0.7 - ky });
-    } else {
-      setPanOffset({ x: width / 2, y: height / 2 - 60 });
-    }
-  }, [gameKey]); // re-center whenever a new game starts
+    const isNewGame = gameKey !== prevGameKey.current;
+    prevGameKey.current = gameKey;
 
-  const fogActive = turn === 2 && !winner;
+    if (isNewGame) {
+      // Compute scale range from actual container dimensions
+      const { width: gw, height: gh } = gridBounds(HEX_SIZE);
+      const fit = Math.min(width / gw, height / gh) * 0.88;
+      minScaleRef.current = Math.max(0.2, fit);
+      // Max zoom = ~5 hexes across
+      const hexWidth = HEX_SIZE * Math.sqrt(3);
+      maxScaleRef.current = clamp(width / (5 * hexWidth), 1.2, 2.5);
+
+      const s = 1.0;
+      setScale(s);
+      const p1King = findKing(board, 1);
+      if (p1King) {
+        const { x: kx, y: ky } = hexToPixel(p1King[0], p1King[1], HEX_SIZE);
+        // Place P1's king ~70% down the screen so the board extends upward toward P2
+        setPanOffset({ x: width / 2 - kx * s, y: height * 0.7 - ky * s });
+      } else {
+        setPanOffset({ x: width / 2, y: height / 2 });
+      }
+    } else {
+      // Post-handoff: snap to current player's king at max zoom
+      const s = maxScaleRef.current;
+      setScale(s);
+      const king = findKing(board, turn);
+      if (king) {
+        const { x: kx, y: ky } = hexToPixel(king[0], king[1], HEX_SIZE);
+        setPanOffset({ x: width / 2 - kx * s, y: height / 2 - ky * s });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameKey, handoffCount]);
+
+  // ── Fog / artifact visibility ─────────────────────────────────────────────
+  const fogActive = turn === 2 && !winner && !fogLifted;
   const visibleHexes = fogActive ? getP2VisibleHexes(board) : null;
   const legalSet = new Set(legalMoves);
 
-  // ── Pan ──────────────────────────────────────────────────────────────────
+  // ── Pan — single pointer ──────────────────────────────────────────────────
   const onPointerDown = useCallback((e) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragState.current = {
-      startX: e.clientX, startY: e.clientY,
-      moved: false,
-      startPan: panOffset ?? { x: 0, y: 0 },
-    };
-  }, [panOffset]);
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.current.size === 1) {
+      dragState.current = {
+        startX: e.clientX, startY: e.clientY,
+        moved: false,
+        startPan: panOffset ?? { x: 0, y: 0 },
+      };
+      pinchStartRef.current = null;
+    } else if (activePointers.current.size === 2) {
+      // Second finger down — start pinch
+      dragState.current = null;
+      const pts = [...activePointers.current.values()];
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const midX = (pts[0].x + pts[1].x) / 2;
+      const midY = (pts[0].y + pts[1].y) / 2;
+      pinchStartRef.current = { dist, scale, midX, midY, pan: panOffset ?? { x: 0, y: 0 } };
+    }
+  }, [panOffset, scale]);
 
   const onPointerMove = useCallback((e) => {
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.current.size === 2 && pinchStartRef.current) {
+      // Pinch-to-zoom: keep midpoint stationary, scale by distance ratio
+      const pts = [...activePointers.current.values()];
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const ratio = dist / pinchStartRef.current.dist;
+      const newScale = clamp(pinchStartRef.current.scale * ratio,
+                             minScaleRef.current, maxScaleRef.current);
+      const { midX, midY, pan } = pinchStartRef.current;
+      // Adjust pan so the midpoint stays fixed on the map
+      const el = containerRef.current;
+      const rect = el ? el.getBoundingClientRect() : { left: 0, top: 0 };
+      const cx = midX - rect.left;
+      const cy = midY - rect.top;
+      setPanOffset({
+        x: cx - (cx - pan.x) * newScale / pinchStartRef.current.scale,
+        y: cy - (cy - pan.y) * newScale / pinchStartRef.current.scale,
+      });
+      setScale(newScale);
+      return;
+    }
+
     if (!dragState.current) return;
     const dx = e.clientX - dragState.current.startX;
     const dy = e.clientY - dragState.current.startY;
@@ -152,7 +236,51 @@ export function HexBoard() {
     }
   }, []);
 
-  const onPointerUp = useCallback(() => { dragState.current = null; }, []);
+  const onPointerUp = useCallback((e) => {
+    activePointers.current.delete(e.pointerId);
+    if (activePointers.current.size < 2) pinchStartRef.current = null;
+    if (activePointers.current.size === 0) dragState.current = null;
+  }, []);
+
+  // ── Wheel zoom (desktop) ──────────────────────────────────────────────────
+  // Attach via addEventListener so we can pass { passive: false } for preventDefault
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e) => {
+      e.preventDefault();
+      setScale(prevScale => {
+        const newScale = clamp(prevScale * (e.deltaY < 0 ? 1.12 : 0.89),
+                               minScaleRef.current, maxScaleRef.current);
+        const rect = el.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        setPanOffset(p => p ? {
+          x: cx - (cx - p.x) * newScale / prevScale,
+          y: cy - (cy - p.y) * newScale / prevScale,
+        } : p);
+        return newScale;
+      });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []); // runs once; uses functional setScale/setPanOffset so stale-closure safe
+
+  // ── Zoom button helper ────────────────────────────────────────────────────
+  const zoomBy = useCallback((delta) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const cx = width / 2, cy = height / 2;
+    setScale(prevScale => {
+      const newScale = clamp(prevScale + delta, minScaleRef.current, maxScaleRef.current);
+      setPanOffset(p => p ? {
+        x: cx - (cx - p.x) * newScale / prevScale,
+        y: cy - (cy - p.y) * newScale / prevScale,
+      } : p);
+      return newScale;
+    });
+  }, []);
 
   // ── Hex tap ──────────────────────────────────────────────────────────────
   const onHexClick = useCallback((key) => {
@@ -191,7 +319,7 @@ export function HexBoard() {
         onPointerCancel={onPointerUp}
         style={{ touchAction: 'none' }}
       >
-        <g transform={`translate(${panOffset.x},${panOffset.y})`}>
+        <g transform={`translate(${panOffset.x},${panOffset.y}) scale(${scale})`}>
           {ALL_HEX_KEYS.map(key => {
             const [q, r] = parseKey(key);
             const { x, y } = hexToPixel(q, r, HEX_SIZE);
@@ -199,6 +327,7 @@ export function HexBoard() {
             const t = terrainOf(key, terrain);
             const piece = board.get(key);
             const isArtifactFound = artifacts.has(key) && excavated.has(key);
+            const isArtifactRevealed = fogLifted && artifacts.has(key) && !excavated.has(key);
             const isExcavatedEmpty = excavated.has(key) && !artifacts.has(key);
             const isLegalEmpty = legalSet.has(key) && !piece;
             const isMountain = t === 'mountain';
@@ -231,9 +360,14 @@ export function HexBoard() {
                   <text x={x} y={y + 5} textAnchor="middle" fontSize="10" fill="#444" pointerEvents="none">○</text>
                 )}
 
-                {/* Found artifact */}
+                {/* Found artifact (excavated) */}
                 {isArtifactFound && !inFog && (
                   <text x={x} y={y + 7} textAnchor="middle" fontSize="18" fill="#f0a020" pointerEvents="none">★</text>
+                )}
+
+                {/* Revealed artifact (fog lifted, not yet excavated) */}
+                {isArtifactRevealed && (
+                  <text x={x} y={y + 7} textAnchor="middle" fontSize="18" fill="#f0a020" opacity={0.45} pointerEvents="none">★</text>
                 )}
 
                 {/* Piece glyph — hide player-1 pieces when fogged */}
@@ -285,6 +419,12 @@ export function HexBoard() {
           })}
         </g>
       </svg>
+
+      {/* ── Zoom controls ──────────────────────────────────────────────────── */}
+      <div className={styles.zoomControls}>
+        <button onClick={() => zoomBy(ZOOM_STEP)} title="Zoom in">+</button>
+        <button onClick={() => zoomBy(-ZOOM_STEP)} title="Zoom out">−</button>
+      </div>
     </div>
   );
 }
