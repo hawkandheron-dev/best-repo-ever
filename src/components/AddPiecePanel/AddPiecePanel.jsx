@@ -5,6 +5,7 @@ import styles from './AddPiecePanel.module.css';
 const PIECES = [
   { type: 'Q', glyph: '♕', label: 'Queen', note: 'Frozen 3 half-turns' },
   { type: 'P', glyph: '♙', label: 'Pawn', note: 'Places 2' },
+  { type: 'R', glyph: '♖', label: 'Rook', note: 'Only Pawns can capture' },
 ];
 
 export function AddPiecePanel() {

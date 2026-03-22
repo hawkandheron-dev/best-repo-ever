@@ -1,8 +1,14 @@
 // HexGameEngine — pure functions, no mutation
-// Piece codes: 'K' King, 'Q' Queen, 'P' Pawn
+// Piece codes: 'K' King, 'Q' Queen, 'P' Pawn, 'R' Rook
 // board: Map<hexKey, { piece, player, frozenTurns? }>
 // terrain: Map<hexKey, 'mountain'>  (absent = normal)
 // player: 1 | 2
+//
+// Rook rules:
+//   • Slides in all 6 hex directions like a Queen
+//   • Can only be captured by Pawns (Queens and Kings are blocked by enemy Rooks)
+//   • Cannot capture a King
+//   • Neither player starts with Rooks; must be deployed via Add Piece
 
 import {
   DIRECTIONS,
@@ -16,11 +22,17 @@ export function terrainOf(key, terrain) {
 }
 
 // Returns: 'no' | 'yes' | 'yes-stop'
-function canEnter(key, board, player, terrain) {
+// movingPiece: piece code of the piece being moved (for capture-rule checks)
+function canEnter(key, board, player, terrain, movingPiece = null) {
   if (terrainOf(key, terrain) === 'mountain') return 'no';
   const resident = board.get(key);
   if (!resident) return 'yes';
-  return resident.player === player ? 'no' : 'yes-stop';
+  if (resident.player === player) return 'no';
+  // Enemy Rook: only Pawns can capture it; everyone else is blocked
+  if (resident.piece === 'R') return movingPiece === 'P' ? 'yes-stop' : 'no';
+  // Rook cannot capture the King
+  if (movingPiece === 'R' && resident.piece === 'K') return 'no';
+  return 'yes-stop';
 }
 
 // ── Movement ─────────────────────────────────────────────────────────────────
@@ -34,17 +46,18 @@ export function getLegalMoves(fromKey, board, player, terrain) {
     case 'K': return kingMoves(q, r, board, player, terrain);
     case 'Q': return queenMoves(q, r, board, player, terrain);
     case 'P': return pawnMoves(q, r, board, player, terrain);
+    case 'R': return rookMoves(q, r, board, player, terrain);
     default:  return [];
   }
 }
 
-function slide(q, r, board, player, dirs, terrain) {
+function slide(q, r, board, player, dirs, terrain, movingPiece = null) {
   const moves = [];
   for (const [dq, dr] of dirs) {
     let nq = q + dq, nr = r + dr;
     while (isValid(nq, nr)) {
       const key = hexKey(nq, nr);
-      const result = canEnter(key, board, player, terrain);
+      const result = canEnter(key, board, player, terrain, movingPiece);
       if (result === 'no') break;
       moves.push(key);
       if (result === 'yes-stop') break;
@@ -54,23 +67,27 @@ function slide(q, r, board, player, dirs, terrain) {
   return moves;
 }
 
-function singleStep(q, r, offsets, board, player, terrain) {
+function singleStep(q, r, offsets, board, player, terrain, movingPiece = null) {
   return offsets
     .map(([dq, dr]) => hexKey(q + dq, r + dr))
     .filter(k => {
       const [nq, nr] = parseKey(k);
       if (!isValid(nq, nr)) return false;
-      const result = canEnter(k, board, player, terrain);
+      const result = canEnter(k, board, player, terrain, movingPiece);
       return result === 'yes' || result === 'yes-stop';
     });
 }
 
 function kingMoves(q, r, board, player, terrain) {
-  return singleStep(q, r, DIRECTIONS, board, player, terrain);
+  return singleStep(q, r, DIRECTIONS, board, player, terrain, 'K');
 }
 
 function queenMoves(q, r, board, player, terrain) {
-  return slide(q, r, board, player, DIRECTIONS, terrain);
+  return slide(q, r, board, player, DIRECTIONS, terrain, 'Q');
+}
+
+function rookMoves(q, r, board, player, terrain) {
+  return slide(q, r, board, player, DIRECTIONS, terrain, 'R');
 }
 
 // Omnidirectional: all 6 adjacent hexes + 6 push-2 hexes (intermediate must be clear)

@@ -99,7 +99,7 @@ function randomAgent(state) {
 
   if (choice === 'add') {
     let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
-    const pieceType = pick(['Q', 'P']);
+    const pieceType = pick(['Q', 'P', 'R']);
     s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType });
     if (s.legalMoves.length === 0) return state;
     s = dispatch(s, { type: SELECT_DESTINATION, key: pick(s.legalMoves) });
@@ -834,6 +834,130 @@ function runBatch(n, p1Agent, p2Agent, label, verbose = false) {
   console.log(`   Win reasons:`, reasons);
 }
 
+// ── P2 Rook Charger ───────────────────────────────────────────────────────────
+// Deploys a Rook as soon as possible, then slides it directly toward P1's King.
+// The King cannot capture the Rook (Rook capture rule), so the King must flee.
+// Falls back to p2Greedy once the Rook is adjacent or if no Rook exists yet.
+
+function p2RookChargerAgent(state) {
+  const player = 2;
+
+  let p1KingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { p1KingKey = key; break; }
+  }
+  if (!p1KingKey) return randomAgent(state);
+  const [kq, kr] = parseKey(p1KingKey);
+
+  // Deploy a Rook if we don't have one yet
+  const rookKey = [...state.board.entries()].find(([, e]) => e.player === 2 && e.piece === 'R')?.[0] ?? null;
+  if (!rookKey) {
+    const placements = getPlacementTargets(state.board, player, state.hexGrid, state.terrain);
+    if (placements.length > 0) {
+      let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+      s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'R' });
+      if (s.legalMoves.length > 0) {
+        // Place Rook on hex closest to P1 King
+        let best = s.legalMoves[0];
+        for (const k of s.legalMoves) {
+          const [q, r] = parseKey(k);
+          const [bq, br] = parseKey(best);
+          if (hexDist(q, r, kq, kr) < hexDist(bq, br, kq, kr)) best = k;
+        }
+        return dispatch(s, { type: SELECT_DESTINATION, key: best });
+      }
+    }
+  }
+
+  // Rook exists — slide it toward P1 King
+  if (rookKey) {
+    const moves = getLegalMoves(rookKey, state.board, player, state.terrain);
+    if (moves.length > 0) {
+      let best = moves[0], bestDist = Infinity;
+      for (const toKey of moves) {
+        const [tq, tr] = parseKey(toKey);
+        const d = hexDist(tq, tr, kq, kr);
+        if (d < bestDist) { bestDist = d; best = toKey; }
+      }
+      let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+      s = dispatch(s, { type: SELECT_PIECE, key: rookKey });
+      return dispatch(s, { type: SELECT_DESTINATION, key: best });
+    }
+  }
+
+  return p2GreedyAgent(state);
+}
+
+// ── P1 Rook Shield ────────────────────────────────────────────────────────────
+// Deploys a Rook between the King and the nearest P2 Queen, then excavates.
+// Since Queens can't capture Rooks, this blocks the Queen's main attack lane.
+// Falls back to p1Greedy once shielded.
+
+function p1RookShieldAgent(state) {
+  const player = 1;
+
+  // Find P1 King
+  let kingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { kingKey = key; break; }
+  }
+  if (!kingKey) return p1GreedyAgent(state);
+  const [kq, kr] = parseKey(kingKey);
+
+  // Is there a P2 Queen threatening us?
+  const p2Queens = [...state.board.entries()].filter(([, e]) => e.player === 2 && e.piece === 'Q');
+  const p1Rooks  = [...state.board.entries()].filter(([, e]) => e.player === 1 && e.piece === 'R');
+
+  // Deploy a Rook if no P1 Rook yet and a P2 Queen exists
+  if (p1Rooks.length === 0 && p2Queens.length > 0) {
+    const placements = getPlacementTargets(state.board, player, state.hexGrid, state.terrain);
+    if (placements.length > 0) {
+      const [p2QKey] = p2Queens[0];
+      const [p2qq, p2qr] = parseKey(p2QKey);
+      let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+      s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'R' });
+      if (s.legalMoves.length > 0) {
+        // Place Rook on the hex between King and enemy Queen (minimise dist to Queen while staying close to King)
+        let best = s.legalMoves[0], bestScore = -Infinity;
+        for (const k of s.legalMoves) {
+          const [q, r] = parseKey(k);
+          const dKing  = hexDist(q, r, kq, kr);
+          const dQueen = hexDist(q, r, p2qq, p2qr);
+          // Prefer close to King but also in the direction of the Queen
+          const score = -dKing - dQueen * 0.5;
+          if (score > bestScore) { bestScore = score; best = k; }
+        }
+        return dispatch(s, { type: SELECT_DESTINATION, key: best });
+      }
+    }
+  }
+
+  // Rook is deployed — move it toward the nearest P2 Queen to stay in the lane
+  if (p1Rooks.length > 0 && p2Queens.length > 0) {
+    const [p2QKey] = p2Queens[0];
+    const [p2qq, p2qr] = parseKey(p2QKey);
+    const [rookKey] = p1Rooks[0];
+    const rookMoves = getLegalMoves(rookKey, state.board, player, state.terrain);
+    if (rookMoves.length > 0) {
+      let best = rookMoves[0], bestDist = Infinity;
+      for (const toKey of rookMoves) {
+        const [tq, tr] = parseKey(toKey);
+        const d = hexDist(tq, tr, p2qq, p2qr);
+        if (d < bestDist) { bestDist = d; best = toKey; }
+      }
+      // Only reposition if it gets meaningfully closer
+      const [rq, rr] = parseKey(rookKey);
+      if (hexDist(rq, rr, p2qq, p2qr) > bestDist) {
+        let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+        s = dispatch(s, { type: SELECT_PIECE, key: rookKey });
+        return dispatch(s, { type: SELECT_DESTINATION, key: best });
+      }
+    }
+  }
+
+  return p1GreedyAgent(state);
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
@@ -854,6 +978,8 @@ console.log(`  p2-greedy       — P2 captures king if reachable, else closes di
 console.log(`  p2-balanced     — p2-greedy + adds Pawns when piece count < 5`);
 console.log(`  p2-pawn-flood   — always spawns 2 Pawns per action aimed at P1 King`);
 console.log(`  p2-fog-stalker  — spread to maximise fog coverage, converge when P1 spotted`);
+console.log(`  p2-rook-charger — deploy a Rook and march it at P1 King (King can't capture Rooks)`);
+console.log(`  p1-rook-shield  — deploy a Rook to block P2 Queen lanes, then excavate`);
 
 // ── Baseline matchups (existing) ──────────────────────────────────────────────
 runBatch(N, p1GreedyAgent,      p2GreedyAgent,      'p1-greedy       vs p2-greedy    (baseline)', verbose);
@@ -882,3 +1008,10 @@ runBatch(N, p1TurtleAgent,      p2PawnFloodAgent,   'p1-turtle       vs p2-pawn-
 runBatch(N, p1KingHunterAgent,  p2PawnFloodAgent,   'p1-king-hunter  vs p2-pawn-flood  (disrupt v flood)', verbose);
 runBatch(N, p1ScryOracleAgent,  p2FogStalkerAgent,  'p1-scry-oracle  vs p2-fog-stalker (info duel)',   verbose);
 runBatch(N, p1BishopSweeperAgent, p2FogStalkerAgent,'p1-bishop-sweep vs p2-fog-stalker (speed v search)', verbose);
+
+// ── Rook matchups ──────────────────────────────────────────────────────────────
+runBatch(N, p1GreedyAgent,       p2RookChargerAgent, 'p1-greedy       vs p2-rook-charger (king-immune attacker)', verbose);
+runBatch(N, p1DefensiveAgent,    p2RookChargerAgent, 'p1-defensive    vs p2-rook-charger',                        verbose);
+runBatch(N, p1RookShieldAgent,   p2GreedyAgent,      'p1-rook-shield  vs p2-greedy       (blocker v rusher)',     verbose);
+runBatch(N, p1RookShieldAgent,   p2RookChargerAgent, 'p1-rook-shield  vs p2-rook-charger (rook duel)',            verbose);
+runBatch(N, p1TurtleAgent,       p2RookChargerAgent, 'p1-turtle       vs p2-rook-charger',                        verbose);

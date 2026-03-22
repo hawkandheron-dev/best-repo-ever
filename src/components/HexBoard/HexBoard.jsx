@@ -10,8 +10,8 @@ const ALL_HEX_KEYS = [...buildHexGrid()];
 const ZOOM_STEP = 0.2;
 
 const PIECE_GLYPHS = {
-  1: { K: '♔', Q: '♕', P: '♙' },
-  2: { K: '♚', Q: '♛', P: '♟' },
+  1: { K: '♔', Q: '♕', P: '♙', R: '♖' },
+  2: { K: '♚', Q: '♛', P: '♟', R: '♜' },
 };
 
 // ── Terrain styling ──────────────────────────────────────────────────────────
