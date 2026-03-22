@@ -4,7 +4,7 @@ import {
 } from './hexGameActions';
 import {
   getLegalMoves, getPlacementTargets, getExcavationTargets, getScryTargets, computeScryResult,
-  checkWin, buildInitialState, moveCost, terrainOf,
+  checkWin, buildInitialState, moveCost,
 } from './HexGameEngine';
 
 export const FOG_LIFT_TURN = 20; // fog lifts when turnCount reaches this value
@@ -14,7 +14,7 @@ export function buildInitialGameState() {
   return {
     hexGrid,
     board,
-    terrain,       // Map<hexKey, 'mountain'|'water'|'swamp'|'bridge'>
+    terrain,       // Map<hexKey, 'mountain'>
     artifacts,
     excavated: new Set(),
     foundArtifacts: 0,
@@ -88,33 +88,15 @@ export function hexGameReducer(state, action) {
 
         const newBoard = new Map(state.board);
         const pieceEntry = { ...newBoard.get(state.selectedPiece) };
-        delete pieceEntry.justAdded;
         newBoard.delete(state.selectedPiece);
-
-        // Bridge mechanic: rook landing on water becomes a bridge
-        const newTerrain = new Map(state.terrain);
-        const destTerrain = terrainOf(key, state.terrain);
-        if (pieceEntry.piece === 'R' && destTerrain === 'water') {
-          pieceEntry.isBridge = true;
-          newTerrain.set(key, 'bridge');
-        } else if (pieceEntry.piece === 'R' && destTerrain === 'bridge') {
-          // Rook captures enemy bridge: becomes the new bridge
-          pieceEntry.isBridge = true;
-          newTerrain.set(key, 'bridge');
-        } else {
-          // Remove isBridge if rook somehow moves off (shouldn't happen, but guard)
-          delete pieceEntry.isBridge;
-        }
         newBoard.set(key, pieceEntry);
 
-        // Swamp costs 2 actions; otherwise 1
         const cost = moveCost(key, state.terrain);
         const nextActionsLeft = Math.max(0, state.actionsLeft - cost);
 
         const nextState = {
           ...state,
           board: newBoard,
-          terrain: newTerrain,
           selectedPiece: null,
           legalMoves: [],
           pendingAction: null,
@@ -167,7 +149,7 @@ export function hexGameReducer(state, action) {
         }
 
         const entry = { piece: state.pendingAddPiece, player: state.turn };
-        if (isQueen) entry.justAdded = true;
+        if (isQueen) entry.frozenTurns = 3;
         newBoard.set(key, entry);
         const nextActionsLeft = state.actionsLeft - 1;
         const nextState = {
@@ -276,11 +258,11 @@ export function hexGameReducer(state, action) {
     case DISMISS_HANDOFF: {
       if (!state.handoff) return state;
       const nextTurn = state.turn === 1 ? 2 : 1;
-      // Clear justAdded flags at start of new turn
+      // Decrement frozenTurns for all frozen pieces
       const newBoard = new Map();
       for (const [k, v] of state.board) {
         const entry = { ...v };
-        delete entry.justAdded;
+        if ((entry.frozenTurns ?? 0) > 0) entry.frozenTurns = entry.frozenTurns - 1;
         newBoard.set(k, entry);
       }
       // Show capture notification to the incoming player about their lost pieces

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useHexGame } from '../experiment/hexGameContext';
 import { NEW_GAME, DISMISS_HANDOFF, DISMISS_CAPTURE, DISMISS_FOG_NOTIFICATION } from '../experiment/hexGameActions';
 import { FOG_LIFT_TURN } from '../experiment/hexGameReducer';
@@ -18,6 +18,18 @@ export function ExperimentScreen({ onBack, testMode = false }) {
 
   // Test mode options — easily extended with more flags later
   const [testOpts, setTestOpts] = useState({ showArtifacts: false });
+
+  // Artifact-found toast
+  const prevFoundRef = useRef(foundArtifacts);
+  const [artifactToast, setArtifactToast] = useState(false);
+  useEffect(() => {
+    if (foundArtifacts > prevFoundRef.current) {
+      setArtifactToast(true);
+      const t = setTimeout(() => setArtifactToast(false), 2000);
+      return () => clearTimeout(t);
+    }
+    prevFoundRef.current = foundArtifacts;
+  }, [foundArtifacts]);
 
   const turnsUntilReveal = FOG_LIFT_TURN - turnCount;
 
@@ -71,9 +83,10 @@ export function ExperimentScreen({ onBack, testMode = false }) {
             <strong>Player 1</strong>
             <ul>
               <li>You see the whole board. Player 2 is in fog.</li>
-              <li>Up to 2 actions: Move, Add a piece, or Excavate.</li>
+              <li>Up to 2 actions: Move, Add a piece, Excavate, or Scry.</li>
               <li>Excavate any hex to flip it — find all 3 ★ artifacts to win.</li>
-              <li>Pawns: add 2 for 1 action. Queens can't move the turn added.</li>
+              <li>Pawns: add 2 for 1 action; move to any of 12 hexes (6 adj + 6 hop-2).</li>
+              <li>Queens: frozen for 3 half-turns after placement.</li>
             </ul>
           </div>
           <div className={styles.howToSection}>
@@ -81,6 +94,7 @@ export function ExperimentScreen({ onBack, testMode = false }) {
             <ul>
               <li>You only see hexes adjacent to your pieces — rest is fog.</li>
               <li>Up to 2 actions: Move or Add a piece.</li>
+              <li>Starts with King, Queen, and 2 Pawns.</li>
               <li>Capture Player 1's King to win.</li>
             </ul>
           </div>
@@ -88,13 +102,15 @@ export function ExperimentScreen({ onBack, testMode = false }) {
             <strong>Terrain</strong>
             <ul>
               <li>▲ Mountains — impassable for all pieces.</li>
-              <li>≋ Swamp — passable but costs both actions to enter.</li>
-              <li>≈ Water — blocked; move a Rook there to build a bridge.</li>
-              <li>Bridge — sliding pieces (Rook, Bishop, Queen) can cross.</li>
             </ul>
           </div>
         </div>
       </details>
+
+      {/* ── Artifact found toast ────────────────────────────────────────── */}
+      {artifactToast && (
+        <div className={styles.artifactToast}>★ Artifact found!</div>
+      )}
 
       {/* ── Countdown overlay ───────────────────────────────────────────── */}
       {countdown !== null && (

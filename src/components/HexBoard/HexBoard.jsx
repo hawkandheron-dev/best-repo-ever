@@ -9,12 +9,9 @@ const HEX_SIZE = 28;
 const ALL_HEX_KEYS = [...buildHexGrid()];
 const ZOOM_STEP = 0.2;
 
-// SVG rotation angle (degrees) for each entry in DIRECTIONS [E,NE,NW,W,SW,SE]
-const SCRY_DIRECTION_ANGLES = [0, -60, -120, 180, 120, 60];
-
 const PIECE_GLYPHS = {
-  1: { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙' },
-  2: { K: '♚', Q: '♛', R: '♜', B: '♝', N: '♞', P: '♟' },
+  1: { K: '♔', Q: '♕', P: '♙' },
+  2: { K: '♚', Q: '♛', P: '♟' },
 };
 
 // ── Terrain styling ──────────────────────────────────────────────────────────
@@ -22,17 +19,11 @@ const PIECE_GLYPHS = {
 const TERRAIN_FILL = {
   normal:   '#1a1a2c',
   mountain: '#2c261c',
-  swamp:    '#121e0c',
-  water:    '#091522',
-  bridge:   '#0c1e2e',
 };
 
 const TERRAIN_STROKE = {
   normal:   '#252538',
   mountain: '#3a3228',
-  swamp:    '#1e2e14',
-  water:    '#102038',
-  bridge:   '#1a3448',
 };
 
 // SVG decoration rendered inside each terrain hex
@@ -51,45 +42,6 @@ function TerrainDecoration({ x, y, terrain }) {
           points={`${x},${y - s * 0.55} ${x - s * 0.12},${y - s * 0.3} ${x + s * 0.12},${y - s * 0.3}`}
           fill="#d0ccc0" pointerEvents="none"
         />
-      </>
-    );
-  }
-  if (terrain === 'swamp') {
-    // Wavy lines for murky water
-    return (
-      <>
-        <text x={x} y={y - 4} textAnchor="middle" fontSize="9" fill="#2a4018" pointerEvents="none" fontFamily="serif">≋</text>
-        <text x={x} y={y + 7} textAnchor="middle" fontSize="9" fill="#1e3010" pointerEvents="none" fontFamily="serif">≋</text>
-        {/* Small tussock dots */}
-        <circle cx={x - 7} cy={y} r={2.5} fill="#1a2e0a" pointerEvents="none" />
-        <circle cx={x + 7} cy={y} r={2} fill="#182808" pointerEvents="none" />
-      </>
-    );
-  }
-  if (terrain === 'water') {
-    // Wave lines
-    return (
-      <>
-        <text x={x} y={y + 3} textAnchor="middle" fontSize="11" fill="#0e3458" pointerEvents="none" fontFamily="serif">≈</text>
-        <text x={x} y={y + 14} textAnchor="middle" fontSize="8" fill="#0a2440" pointerEvents="none" fontFamily="serif">≈</text>
-      </>
-    );
-  }
-  if (terrain === 'bridge') {
-    // Bridge planks + water underneath
-    return (
-      <>
-        <text x={x} y={y + 3} textAnchor="middle" fontSize="11" fill="#1a4a6a" pointerEvents="none" fontFamily="serif">≈</text>
-        {/* Bridge planks */}
-        {[-8, -2, 4, 10].map(dy => (
-          <rect
-            key={dy}
-            x={x - s * 0.4} y={y - s * 0.12 + dy * 0.5}
-            width={s * 0.8} height={2.5}
-            fill="#5a4020" stroke="#4a3018" strokeWidth={0.3}
-            pointerEvents="none"
-          />
-        ))}
       </>
     );
   }
@@ -357,7 +309,7 @@ export function HexBoard({ showAllArtifacts = false }) {
 
                 {/* Excavated empty */}
                 {isExcavatedEmpty && !inFog && (
-                  <text x={x} y={y + 5} textAnchor="middle" fontSize="10" fill="#444" pointerEvents="none">○</text>
+                  <text x={x} y={y + 5} textAnchor="middle" fontSize="14" fill="#555" opacity={0.8} pointerEvents="none">×</text>
                 )}
 
                 {/* Found artifact (excavated) */}
@@ -375,9 +327,9 @@ export function HexBoard({ showAllArtifacts = false }) {
                   <text
                     x={x} y={y + 7}
                     textAnchor="middle"
-                    fontSize={piece.isBridge ? 14 : 20}
+                    fontSize={20}
                     fill={piece.player === 1 ? '#c8c8ff' : '#ff8080'}
-                    opacity={piece.justAdded ? 0.55 : piece.isBridge ? 0.8 : 1}
+                    opacity={(piece.frozenTurns ?? 0) > 0 ? 0.55 : 1}
                     pointerEvents="none"
                     fontFamily="serif"
                   >
@@ -394,10 +346,10 @@ export function HexBoard({ showAllArtifacts = false }) {
           })}
 
           {/* Scry result overlays */}
-          {scryResults.map(({ fromKey, directionIndex, caretCount }, idx) => {
+          {scryResults.map(({ fromKey, directionAngle, caretCount }, idx) => {
             const [q, r] = parseKey(fromKey);
             const { x, y } = hexToPixel(q, r, HEX_SIZE);
-            const angle = SCRY_DIRECTION_ANGLES[directionIndex];
+            const angle = directionAngle;
             const rad = (angle * Math.PI) / 180;
             const offsetDist = HEX_SIZE * 0.55;
             const tx = x + offsetDist * Math.cos(rad);
