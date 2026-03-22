@@ -958,6 +958,363 @@ function p1RookShieldAgent(state) {
   return p1GreedyAgent(state);
 }
 
+// ── P2 Rook Vanguard ──────────────────────────────────────────────────────────
+// Three-phase Rook+Queen coordination:
+//   1. Deploy Rook as far forward as possible toward P1 King.
+//   2. Deploy Queen adjacent to the Rook (behind it, using it as a screen).
+//   3. Rook sweeps ahead — captures any P1 Pawn or Queen it can reach, then
+//      advances; Queen follows and delivers the kill (only Queen can take the King).
+// The Rook's immunity to the King forces P1 to spend Pawn actions removing it,
+// buying time for the Queen to slide through the cleared lane.
+
+function p2RookVanguardAgent(state) {
+  const player = 2;
+
+  let p1KingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { p1KingKey = key; break; }
+  }
+  if (!p1KingKey) return randomAgent(state);
+  const [kq, kr] = parseKey(p1KingKey);
+
+  let rookKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 2 && e.piece === 'R') { rookKey = key; break; }
+  }
+  let queenKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 2 && e.piece === 'Q' && (e.frozenTurns ?? 0) === 0) { queenKey = key; break; }
+  }
+  const hasAnyQueen = [...state.board.values()].some(e => e.player === 2 && e.piece === 'Q');
+
+  // Phase 1: no Rook — deploy it as close to P1 King as possible
+  if (!rookKey) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'R' });
+    if (s.legalMoves.length > 0) {
+      let best = s.legalMoves[0], bestDist = Infinity;
+      for (const k of s.legalMoves) {
+        const [q, r] = parseKey(k);
+        const d = hexDist(q, r, kq, kr);
+        if (d < bestDist) { bestDist = d; best = k; }
+      }
+      return dispatch(s, { type: SELECT_DESTINATION, key: best });
+    }
+    return p2GreedyAgent(state);
+  }
+
+  // Phase 2: have Rook but no Queen — deploy Queen closest to Rook (just behind it)
+  if (!hasAnyQueen) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'Q' });
+    if (s.legalMoves.length > 0) {
+      const [rq, rr] = parseKey(rookKey);
+      let best = s.legalMoves[0], bestDist = Infinity;
+      for (const k of s.legalMoves) {
+        const [q, r] = parseKey(k);
+        const d = hexDist(q, r, rq, rr);
+        if (d < bestDist) { bestDist = d; best = k; }
+      }
+      return dispatch(s, { type: SELECT_DESTINATION, key: best });
+    }
+  }
+
+  // Phase 3a: Rook captures any P1 Pawn or Queen in its slide range
+  if (rookKey) {
+    const rookMoves = getLegalMoves(rookKey, state.board, player, state.terrain);
+    for (const toKey of rookMoves) {
+      const res = state.board.get(toKey);
+      if (res && res.player === 1 && (res.piece === 'P' || res.piece === 'Q')) {
+        let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+        s = dispatch(s, { type: SELECT_PIECE, key: rookKey });
+        return dispatch(s, { type: SELECT_DESTINATION, key: toKey });
+      }
+    }
+    // Phase 3b: advance Rook toward King (King can't capture it — forces King to flee)
+    const [rq, rr] = parseKey(rookKey);
+    const rookDistToKing = hexDist(rq, rr, kq, kr);
+    if (rookDistToKing > 1 && rookMoves.length > 0) {
+      let best = rookMoves[0], bestDist = Infinity;
+      for (const toKey of rookMoves) {
+        const [tq, tr] = parseKey(toKey);
+        const d = hexDist(tq, tr, kq, kr);
+        if (d < bestDist) { bestDist = d; best = toKey; }
+      }
+      if (bestDist < rookDistToKing) {
+        let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+        s = dispatch(s, { type: SELECT_PIECE, key: rookKey });
+        return dispatch(s, { type: SELECT_DESTINATION, key: best });
+      }
+    }
+  }
+
+  // Phase 3c: Queen captures King or advances toward it
+  if (queenKey) {
+    const queenMoves = getLegalMoves(queenKey, state.board, player, state.terrain);
+    if (queenMoves.includes(p1KingKey)) {
+      let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+      s = dispatch(s, { type: SELECT_PIECE, key: queenKey });
+      return dispatch(s, { type: SELECT_DESTINATION, key: p1KingKey });
+    }
+    if (queenMoves.length > 0) {
+      let best = queenMoves[0], bestDist = Infinity;
+      for (const toKey of queenMoves) {
+        const [tq, tr] = parseKey(toKey);
+        const d = hexDist(tq, tr, kq, kr);
+        if (d < bestDist) { bestDist = d; best = toKey; }
+      }
+      let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+      s = dispatch(s, { type: SELECT_PIECE, key: queenKey });
+      return dispatch(s, { type: SELECT_DESTINATION, key: best });
+    }
+  }
+
+  return p2GreedyAgent(state);
+}
+
+// ── P2 Pawn Screen + Rook Finisher ────────────────────────────────────────────
+// Phase 1: flood SCREEN_SIZE Pawns toward P1 King, drawing out P1's defenders.
+// Phase 2: deploy a Rook once the Pawn wave is committed.
+// Phase 3: Rook hunts P1 Pawns specifically — they're the only pieces that can
+//          capture the Rook, so eliminating them makes the Rook permanently safe.
+// Phase 4: P1 Pawn-free board; all remaining P2 pieces converge on King.
+
+const SCREEN_SIZE = 4;
+
+function p2PawnScreenRookAgent(state) {
+  const player = 2;
+
+  let p1KingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { p1KingKey = key; break; }
+  }
+  if (!p1KingKey) return randomAgent(state);
+  const [kq, kr] = parseKey(p1KingKey);
+
+  const ownPawns = [...state.board.entries()].filter(([, e]) => e.player === 2 && e.piece === 'P');
+  const hasRook  = [...state.board.values()].some(e => e.player === 2 && e.piece === 'R');
+  const p1Pawns  = [...state.board.entries()].filter(([, e]) => e.player === 1 && e.piece === 'P');
+
+  // Phase 1: build the Pawn screen
+  if (ownPawns.length < SCREEN_SIZE) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'P' });
+    if (s.legalMoves.length > 0) {
+      let hex1 = s.legalMoves[0], bestD1 = Infinity;
+      for (const k of s.legalMoves) {
+        const [q, r] = parseKey(k);
+        const d = hexDist(q, r, kq, kr);
+        if (d < bestD1) { bestD1 = d; hex1 = k; }
+      }
+      s = dispatch(s, { type: SELECT_DESTINATION, key: hex1 });
+      if (s.legalMoves.length > 0) {
+        let hex2 = s.legalMoves[0], bestD2 = Infinity;
+        for (const k of s.legalMoves) {
+          const [q, r] = parseKey(k);
+          const d = hexDist(q, r, kq, kr);
+          if (d < bestD2) { bestD2 = d; hex2 = k; }
+        }
+        s = dispatch(s, { type: SELECT_DESTINATION, key: hex2 });
+      }
+      return s;
+    }
+  }
+
+  // Phase 2: Pawn screen is up — deploy the Rook
+  if (!hasRook) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'R' });
+    if (s.legalMoves.length > 0) {
+      let best = s.legalMoves[0], bestDist = Infinity;
+      for (const k of s.legalMoves) {
+        const [q, r] = parseKey(k);
+        const d = hexDist(q, r, kq, kr);
+        if (d < bestDist) { bestDist = d; best = k; }
+      }
+      return dispatch(s, { type: SELECT_DESTINATION, key: best });
+    }
+  }
+
+  // Phase 3: Rook hunts P1 Pawns
+  if (hasRook && p1Pawns.length > 0) {
+    let rookKey = null;
+    for (const [key, e] of state.board) {
+      if (e.player === 2 && e.piece === 'R') { rookKey = key; break; }
+    }
+    if (rookKey) {
+      const rookMoves = getLegalMoves(rookKey, state.board, player, state.terrain);
+      // Capture a P1 Pawn in range
+      for (const toKey of rookMoves) {
+        const res = state.board.get(toKey);
+        if (res && res.player === 1 && res.piece === 'P') {
+          let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+          s = dispatch(s, { type: SELECT_PIECE, key: rookKey });
+          return dispatch(s, { type: SELECT_DESTINATION, key: toKey });
+        }
+      }
+      // Advance Rook toward nearest P1 Pawn
+      const [rq, rr] = parseKey(rookKey);
+      let nearestPawnKey = p1Pawns[0][0], nearestPawnDist = Infinity;
+      for (const [pk] of p1Pawns) {
+        const [pq, pr] = parseKey(pk);
+        const d = hexDist(rq, rr, pq, pr);
+        if (d < nearestPawnDist) { nearestPawnDist = d; nearestPawnKey = pk; }
+      }
+      const [npq, npr] = parseKey(nearestPawnKey);
+      if (rookMoves.length > 0) {
+        let best = rookMoves[0], bestDist = Infinity;
+        for (const toKey of rookMoves) {
+          const [tq, tr] = parseKey(toKey);
+          const d = hexDist(tq, tr, npq, npr);
+          if (d < bestDist) { bestDist = d; best = toKey; }
+        }
+        if (bestDist < nearestPawnDist) {
+          let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+          s = dispatch(s, { type: SELECT_PIECE, key: rookKey });
+          return dispatch(s, { type: SELECT_DESTINATION, key: best });
+        }
+      }
+    }
+  }
+
+  // Phase 4: P1 Pawns gone — converge on King
+  return p2GreedyAgent(state);
+}
+
+// ── P1 Rook Corridor ──────────────────────────────────────────────────────────
+// Proactive Rook+Queen pairing:
+//   1. Deploy Rook toward the midpoint between P1 King and the nearest P2 piece,
+//      creating an intercept position before P2 can close in.
+//   2. Deploy a Queen toward the artifact middle band.
+//   3. Rook repositions each turn to stay between P2's Queen and P1's King —
+//      since P2's Queen can't slide through or capture the P1 Rook, P2 must
+//      spend a Pawn action to remove it, giving P1's Queen more excavation time.
+//   4. Queen excavates greedily; move it toward the middle band if idle.
+
+function p1RookCorridorAgent(state) {
+  const player = 1;
+
+  let kingKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'K') { kingKey = key; break; }
+  }
+  if (!kingKey) return p1GreedyAgent(state);
+  const [kq, kr] = parseKey(kingKey);
+
+  let p1RookKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'R') { p1RookKey = key; break; }
+  }
+  let p1QueenKey = null;
+  for (const [key, e] of state.board) {
+    if (e.player === 1 && e.piece === 'Q' && (e.frozenTurns ?? 0) === 0) { p1QueenKey = key; break; }
+  }
+  const hasP1Queen = [...state.board.values()].some(e => e.player === 1 && e.piece === 'Q');
+
+  const p2Queens = [...state.board.entries()].filter(([, e]) => e.player === 2 && e.piece === 'Q');
+
+  // Phase 1: no Rook — deploy it at the midpoint between King and nearest P2 piece
+  if (!p1RookKey) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'R' });
+    if (s.legalMoves.length > 0) {
+      let nearestP2Key = null, nearestDist = Infinity;
+      for (const [key, e] of state.board) {
+        if (e.player !== 2) continue;
+        const [q, r] = parseKey(key);
+        const d = hexDist(q, r, kq, kr);
+        if (d < nearestDist) { nearestDist = d; nearestP2Key = key; }
+      }
+      let best = s.legalMoves[0];
+      if (nearestP2Key) {
+        const [p2q, p2r] = parseKey(nearestP2Key);
+        const midQ = Math.round((kq + p2q) / 2);
+        const midR = Math.round((kr + p2r) / 2);
+        let bestDist = Infinity;
+        for (const k of s.legalMoves) {
+          const [q, r] = parseKey(k);
+          const d = hexDist(q, r, midQ, midR);
+          if (d < bestDist) { bestDist = d; best = k; }
+        }
+      }
+      return dispatch(s, { type: SELECT_DESTINATION, key: best });
+    }
+    return p1GreedyAgent(state);
+  }
+
+  // Phase 2: have Rook, no Queen — deploy Queen toward the middle artifact band
+  if (!hasP1Queen) {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'add' });
+    s = dispatch(s, { type: SELECT_ADD_PIECE, pieceType: 'Q' });
+    if (s.legalMoves.length > 0) {
+      let best = s.legalMoves[0], bestScore = Infinity;
+      for (const k of s.legalMoves) {
+        const [, r] = parseKey(k);
+        if (Math.abs(r) < bestScore) { bestScore = Math.abs(r); best = k; }
+      }
+      return dispatch(s, { type: SELECT_DESTINATION, key: best });
+    }
+  }
+
+  // Phase 3a: Rook intercepts the nearest P2 Queen — move toward it to block its lane
+  if (p1RookKey && p2Queens.length > 0) {
+    const [rq, rr] = parseKey(p1RookKey);
+    let nearestQKey = p2Queens[0][0], nearestQDist = Infinity;
+    for (const [qk] of p2Queens) {
+      const [q, r] = parseKey(qk);
+      const d = hexDist(q, r, rq, rr);
+      if (d < nearestQDist) { nearestQDist = d; nearestQKey = qk; }
+    }
+    const [p2qq, p2qr] = parseKey(nearestQKey);
+    const rookMoves = getLegalMoves(p1RookKey, state.board, player, state.terrain);
+    if (rookMoves.length > 0 && nearestQDist > 2) {
+      let best = rookMoves[0], bestDist = Infinity;
+      for (const toKey of rookMoves) {
+        const [tq, tr] = parseKey(toKey);
+        const d = hexDist(tq, tr, p2qq, p2qr);
+        if (d < bestDist) { bestDist = d; best = toKey; }
+      }
+      if (bestDist < nearestQDist) {
+        let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+        s = dispatch(s, { type: SELECT_PIECE, key: p1RookKey });
+        return dispatch(s, { type: SELECT_DESTINATION, key: best });
+      }
+    }
+  }
+
+  // Phase 3b: Queen excavates greedily, or moves toward the middle band
+  if (p1QueenKey) {
+    const excavTargets = getExcavationTargets(state.board, player, state.hexGrid)
+      .filter(k => !state.excavated.has(k));
+    const hit = excavTargets.find(k => state.artifacts.has(k));
+    if (hit) {
+      let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+      return dispatch(s, { type: EXCAVATE_HEX, key: hit });
+    }
+    if (excavTargets.length > 0) {
+      let s = dispatch(state, { type: START_ACTION, actionType: 'excavate' });
+      return dispatch(s, { type: EXCAVATE_HEX, key: excavTargets[0] });
+    }
+    // No excavation targets near Queen — advance Queen toward middle band
+    const queenMoves = getLegalMoves(p1QueenKey, state.board, player, state.terrain);
+    if (queenMoves.length > 0) {
+      const [, curR] = parseKey(p1QueenKey);
+      let best = queenMoves[0], bestScore = Infinity;
+      for (const toKey of queenMoves) {
+        const [, r] = parseKey(toKey);
+        if (Math.abs(r) < bestScore) { bestScore = Math.abs(r); best = toKey; }
+      }
+      if (Math.abs(parseKey(best)[1]) < Math.abs(curR)) {
+        let s = dispatch(state, { type: START_ACTION, actionType: 'move' });
+        s = dispatch(s, { type: SELECT_PIECE, key: p1QueenKey });
+        return dispatch(s, { type: SELECT_DESTINATION, key: best });
+      }
+    }
+  }
+
+  return p1GreedyAgent(state);
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
@@ -978,8 +1335,11 @@ console.log(`  p2-greedy       — P2 captures king if reachable, else closes di
 console.log(`  p2-balanced     — p2-greedy + adds Pawns when piece count < 5`);
 console.log(`  p2-pawn-flood   — always spawns 2 Pawns per action aimed at P1 King`);
 console.log(`  p2-fog-stalker  — spread to maximise fog coverage, converge when P1 spotted`);
-console.log(`  p2-rook-charger — deploy a Rook and march it at P1 King (King can't capture Rooks)`);
-console.log(`  p1-rook-shield  — deploy a Rook to block P2 Queen lanes, then excavate`);
+console.log(`  p2-rook-charger    — deploy a Rook and march it at P1 King (King can't capture Rooks)`);
+console.log(`  p1-rook-shield     — deploy a Rook to block P2 Queen lanes, then excavate`);
+console.log(`  p2-rook-vanguard   — Rook+Queen: Rook clears P1 Pawns/Queens, Queen follows for the kill`);
+console.log(`  p2-pawn-screen-rook— flood Pawns first, then Rook to eliminate P1 Pawns, then converge`);
+console.log(`  p1-rook-corridor   — Rook+Queen: Rook intercepts P2 Queens, Queen excavates behind`);
 
 // ── Baseline matchups (existing) ──────────────────────────────────────────────
 runBatch(N, p1GreedyAgent,      p2GreedyAgent,      'p1-greedy       vs p2-greedy    (baseline)', verbose);
@@ -1014,4 +1374,15 @@ runBatch(N, p1GreedyAgent,       p2RookChargerAgent, 'p1-greedy       vs p2-rook
 runBatch(N, p1DefensiveAgent,    p2RookChargerAgent, 'p1-defensive    vs p2-rook-charger',                        verbose);
 runBatch(N, p1RookShieldAgent,   p2GreedyAgent,      'p1-rook-shield  vs p2-greedy       (blocker v rusher)',     verbose);
 runBatch(N, p1RookShieldAgent,   p2RookChargerAgent, 'p1-rook-shield  vs p2-rook-charger (rook duel)',            verbose);
-runBatch(N, p1TurtleAgent,       p2RookChargerAgent, 'p1-turtle       vs p2-rook-charger',                        verbose);
+runBatch(N, p1TurtleAgent,       p2RookChargerAgent, 'p1-turtle       vs p2-rook-charger',                           verbose);
+
+// ── Rook coordination matchups ─────────────────────────────────────────────────
+runBatch(N, p1GreedyAgent,       p2RookVanguardAgent,    'p1-greedy       vs p2-rook-vanguard   (vanguard v passive)',   verbose);
+runBatch(N, p1DefensiveAgent,    p2RookVanguardAgent,    'p1-defensive    vs p2-rook-vanguard',                         verbose);
+runBatch(N, p1TurtleAgent,       p2RookVanguardAgent,    'p1-turtle       vs p2-rook-vanguard   (wall v vanguard)',      verbose);
+runBatch(N, p1GreedyAgent,       p2PawnScreenRookAgent,  'p1-greedy       vs p2-pawn-screen-rook',                      verbose);
+runBatch(N, p1TurtleAgent,       p2PawnScreenRookAgent,  'p1-turtle       vs p2-pawn-screen-rook (wall v screen)',       verbose);
+runBatch(N, p1RookCorridorAgent, p2GreedyAgent,          'p1-rook-corridor vs p2-greedy          (corridor v rusher)',   verbose);
+runBatch(N, p1RookCorridorAgent, p2BalancedAgent,        'p1-rook-corridor vs p2-balanced',                             verbose);
+runBatch(N, p1RookCorridorAgent, p2RookVanguardAgent,    'p1-rook-corridor vs p2-rook-vanguard   (rook duel)',           verbose);
+runBatch(N, p1RookCorridorAgent, p2PawnScreenRookAgent,  'p1-rook-corridor vs p2-pawn-screen-rook',                     verbose);
