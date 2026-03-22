@@ -94,7 +94,7 @@ export function ExperimentScreen({ onBack, testMode = false }) {
             <ul>
               <li>You only see hexes adjacent to your pieces — rest is fog.</li>
               <li>Up to 2 actions: Move or Add a piece.</li>
-              <li>Starts with King, Queen, and 2 Pawns.</li>
+              <li>Starts with King and 2 Pawns.</li>
               <li>Capture Player 1's King to win.</li>
             </ul>
           </div>

@@ -209,7 +209,7 @@ export function buildInitialState() {
   const board = new Map();
 
   // Randomise starting positions ────────────────────────────────────────────
-  const P2_COMPANION = [[2, 0], [-1, 1], [1, 1]]; // offsets from P2 King
+  const P2_COMPANION = [[-1, 1], [1, 1]]; // offsets from P2 King
 
   // P1: King only — southern outer zone (r ≥ 7, |q| ≤ 5)
   const p1Candidates = [...hexGrid].filter(k => {
@@ -230,7 +230,6 @@ export function buildInitialState() {
   const [p2Key] = pickRandom(p2Candidates, 1);
   const [p2q, p2r] = parseKey(p2Key);
   board.set(p2Key,                    { piece: 'K', player: 2 });
-  board.set(hexKey(p2q + 2, p2r),     { piece: 'Q', player: 2 }); // was Knight
   board.set(hexKey(p2q - 1, p2r + 1), { piece: 'P', player: 2 });
   board.set(hexKey(p2q + 1, p2r + 1), { piece: 'P', player: 2 });
 
