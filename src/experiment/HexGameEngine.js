@@ -73,7 +73,7 @@ function queenMoves(q, r, board, player, terrain) {
   return slide(q, r, board, player, DIRECTIONS, terrain);
 }
 
-// Omnidirectional: all 6 adjacent hexes + 6 hop-2 hexes (can jump)
+// Omnidirectional: all 6 adjacent hexes + 6 push-2 hexes (intermediate must be clear)
 function pawnMoves(q, r, board, player, terrain) {
   const moves = [];
   // Ring 1: all 6 adjacent hexes
@@ -85,10 +85,14 @@ function pawnMoves(q, r, board, player, terrain) {
     const resident = board.get(key);
     if (!resident || resident.player !== player) moves.push(key);
   }
-  // Ring 2: 6 hop-2 hexes (jump — intermediate hex not checked)
+  // Ring 2: 6 push-2 hexes — intermediate must be empty and not a mountain
   for (const [dq, dr] of DIRECTIONS) {
-    const nq = q + 2 * dq, nr = r + 2 * dr;
-    if (!isValid(nq, nr)) continue;
+    const iq = q + dq,     ir = r + dr;       // intermediate
+    const nq = q + 2 * dq, nr = r + 2 * dr;   // destination
+    if (!isValid(iq, ir) || !isValid(nq, nr)) continue;
+    const iKey = hexKey(iq, ir);
+    if (terrainOf(iKey, terrain) === 'mountain') continue;
+    if (board.has(iKey)) continue; // any piece blocks the push
     const key = hexKey(nq, nr);
     if (terrainOf(key, terrain) === 'mountain') continue;
     const resident = board.get(key);
@@ -149,6 +153,35 @@ export function computeScryResult(fromKey, artifacts, excavated) {
 
   // Caret count based on distance
   const caretCount = nearestDist <= 3 ? 3 : nearestDist <= 7 ? 2 : 1;
+
+  return { fromKey, directionAngle, caretCount };
+}
+
+// Returns P2 piece keys that can scry (all P2 pieces).
+export function getP2ScryTargets(board) {
+  const targets = [];
+  for (const [key, entry] of board) {
+    if (entry.player === 2) targets.push(key);
+  }
+  return targets;
+}
+
+// Returns { fromKey, directionAngle, caretCount } pointing toward P1's King, or null.
+export function computeP2ScryResult(fromKey, board) {
+  let p1KingKey = null;
+  for (const [key, entry] of board) {
+    if (entry.player === 1 && entry.piece === 'K') { p1KingKey = key; break; }
+  }
+  if (!p1KingKey) return null;
+
+  const [fq, fr] = parseKey(fromKey);
+  const [kq, kr] = parseKey(p1KingKey);
+  const dist = hexDist(fq, fr, kq, kr);
+
+  const dx = Math.sqrt(3) * (kq - fq) + (Math.sqrt(3) / 2) * (kr - fr);
+  const dy = 1.5 * (kr - fr);
+  const directionAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+  const caretCount = dist <= 3 ? 3 : dist <= 7 ? 2 : 1;
 
   return { fromKey, directionAngle, caretCount };
 }

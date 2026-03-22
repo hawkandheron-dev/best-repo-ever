@@ -3,7 +3,9 @@ import {
   EXCAVATE_HEX, SCRY_FROM, CANCEL_ACTION, END_TURN, TICK_COUNTDOWN, DISMISS_HANDOFF, DISMISS_CAPTURE, DISMISS_FOG_NOTIFICATION, NEW_GAME,
 } from './hexGameActions';
 import {
-  getLegalMoves, getPlacementTargets, getExcavationTargets, getScryTargets, computeScryResult,
+  getLegalMoves, getPlacementTargets, getExcavationTargets,
+  getScryTargets, computeScryResult,
+  getP2ScryTargets, computeP2ScryResult,
   checkWin, buildInitialState, moveCost,
 } from './HexGameEngine';
 
@@ -19,7 +21,7 @@ export function buildInitialGameState() {
     excavated: new Set(),
     foundArtifacts: 0,
     turn: 1,
-    actionsLeft: 2,
+    actionsLeft: 3,
     phase: 'select-action',
     selectedPiece: null,
     legalMoves: [],
@@ -56,7 +58,9 @@ export function hexGameReducer(state, action) {
       }
       if (actionType === 'add')      return { ...state, phase: 'select-add-piece', pendingAction: 'add' };
       if (actionType === 'scry') {
-        const targets = getScryTargets(state.board);
+        const targets = state.turn === 1
+          ? getScryTargets(state.board)
+          : getP2ScryTargets(state.board);
         return { ...state, phase: 'select-scry', pendingAction: 'scry', legalMoves: targets };
       }
       return state;
@@ -215,7 +219,9 @@ export function hexGameReducer(state, action) {
       const { key } = action;
       if (!state.legalMoves.includes(key)) return state;
 
-      const result = computeScryResult(key, state.artifacts, state.excavated);
+      const result = state.turn === 1
+        ? computeScryResult(key, state.artifacts, state.excavated)
+        : computeP2ScryResult(key, state.board);
       const newScryResults = result
         ? [...state.scryResults, result]
         : state.scryResults;
@@ -276,7 +282,7 @@ export function hexGameReducer(state, action) {
         board: newBoard,
         handoff: false,
         turn: nextTurn,
-        actionsLeft: 2,
+        actionsLeft: nextTurn === 1 ? 3 : 2,
         phase: 'select-action',
         selectedPiece: null,
         legalMoves: [],

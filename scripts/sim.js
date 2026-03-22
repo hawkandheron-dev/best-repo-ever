@@ -18,6 +18,7 @@ import { buildInitialGameState, hexGameReducer } from '../src/experiment/hexGame
 import {
   getLegalMoves, getPlacementTargets, getExcavationTargets,
   getScryTargets, getP2VisibleHexes,
+  getP2ScryTargets, computeP2ScryResult,
 } from '../src/experiment/HexGameEngine.js';
 import { parseKey, hexDist, hexKey } from '../src/experiment/hexMath.js';
 import {
@@ -80,6 +81,10 @@ function randomAgent(state) {
     if (unexc.length > 0) opts.push('excavate');
   }
 
+  // Scry (both players)
+  const scryTargets = player === 1 ? getScryTargets(state.board) : getP2ScryTargets(state.board);
+  if (scryTargets.length > 0) opts.push('scry');
+
   if (opts.length === 0) return state; // nothing to do — runner will end turn
 
   const choice = pick(opts);
@@ -109,6 +114,12 @@ function randomAgent(state) {
     const unexc = s.legalMoves.filter(k => !state.excavated.has(k));
     if (unexc.length === 0) return state;
     return dispatch(s, { type: EXCAVATE_HEX, key: pick(unexc) });
+  }
+
+  if (choice === 'scry') {
+    let s = dispatch(state, { type: START_ACTION, actionType: 'scry' });
+    if (s.legalMoves.length === 0) return state;
+    return dispatch(s, { type: SCRY_FROM, key: pick(s.legalMoves) });
   }
 
   return state;

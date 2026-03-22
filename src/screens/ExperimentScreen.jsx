@@ -83,9 +83,9 @@ export function ExperimentScreen({ onBack, testMode = false }) {
             <strong>Player 1</strong>
             <ul>
               <li>You see the whole board. Player 2 is in fog.</li>
-              <li>Up to 2 actions: Move, Add a piece, Excavate, or Scry.</li>
+              <li>Up to 3 actions: Move, Add a piece, Excavate, or Scry.</li>
               <li>Excavate any hex to flip it — find all 3 ★ artifacts to win.</li>
-              <li>Pawns: add 2 for 1 action; move to any of 12 hexes (6 adj + 6 hop-2).</li>
+              <li>Pawns: add 2 for 1 action; move to 6 adjacent or 6 push-2 hexes (12 total).</li>
               <li>Queens: frozen for 3 half-turns after placement.</li>
             </ul>
           </div>
@@ -93,7 +93,8 @@ export function ExperimentScreen({ onBack, testMode = false }) {
             <strong>Player 2</strong>
             <ul>
               <li>You only see hexes adjacent to your pieces — rest is fog.</li>
-              <li>Up to 2 actions: Move or Add a piece.</li>
+              <li>Up to 2 actions: Move, Add a piece, or Scry.</li>
+              <li>Scry reveals the direction to Player 1's King.</li>
               <li>Starts with King and 2 Pawns.</li>
               <li>Capture Player 1's King to win.</li>
             </ul>
