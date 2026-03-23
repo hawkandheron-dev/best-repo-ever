@@ -1,20 +1,54 @@
-import { useState } from 'react';
-import { createEmptyGrid } from '../spriteEditor/spriteUtils';
+import { useState, useCallback, useRef } from 'react';
+import { createEmptyGrid, cloneGrid } from '../spriteEditor/spriteUtils';
 import { SpriteCanvas } from '../components/SpriteCanvas/SpriteCanvas';
 import { RotationPreview } from '../components/SpriteCanvas/RotationPreview';
+import { GradientColorPicker } from '../components/SpriteCanvas/GradientColorPicker';
 import styles from './SpriteStudioScreen.module.css';
 
-const PRESETS = [
-  '#000000', '#ffffff', '#ff0000', '#00aa00',
-  '#3366ff', '#ffcc00', '#8b4513', '#888888',
-  '#aa00cc', '#ff6600',
-];
+const MAX_HISTORY = 80;
 
 export function SpriteStudioScreen({ onBack }) {
   const [grid, setGrid] = useState(() => createEmptyGrid());
   const [color, setColor] = useState('#ffffff');
   const [tool, setTool] = useState('pencil');   // 'pencil' | 'eraser'
   const [showGrid, setShowGrid] = useState(true);
+
+  // Undo / redo stacks (store grid snapshots).
+  const undoStack = useRef([]);
+  const redoStack = useRef([]);
+
+  /** Wrap setGrid so every external change pushes onto the undo stack. */
+  const pushGrid = useCallback(
+    (nextGrid) => {
+      setGrid((prev) => {
+        undoStack.current.push(cloneGrid(prev));
+        if (undoStack.current.length > MAX_HISTORY) undoStack.current.shift();
+        redoStack.current = []; // new change clears redo
+        return nextGrid;
+      });
+    },
+    [],
+  );
+
+  const undo = useCallback(() => {
+    if (undoStack.current.length === 0) return;
+    setGrid((prev) => {
+      redoStack.current.push(cloneGrid(prev));
+      return undoStack.current.pop();
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    if (redoStack.current.length === 0) return;
+    setGrid((prev) => {
+      undoStack.current.push(cloneGrid(prev));
+      return redoStack.current.pop();
+    });
+  }, []);
+
+  const clearCanvas = useCallback(() => {
+    pushGrid(createEmptyGrid());
+  }, [pushGrid]);
 
   return (
     <div className={styles.container}>
@@ -29,7 +63,7 @@ export function SpriteStudioScreen({ onBack }) {
       {/* Drawing canvas */}
       <SpriteCanvas
         grid={grid}
-        onGridChange={setGrid}
+        onGridChange={pushGrid}
         color={color}
         tool={tool}
         showGrid={showGrid}
@@ -49,10 +83,7 @@ export function SpriteStudioScreen({ onBack }) {
         >
           Eraser
         </button>
-        <button
-          className={styles.toolBtn}
-          onClick={() => setGrid(createEmptyGrid())}
-        >
+        <button className={styles.toolBtn} onClick={clearCanvas}>
           Clear
         </button>
         <button
@@ -63,29 +94,24 @@ export function SpriteStudioScreen({ onBack }) {
         </button>
       </div>
 
-      {/* Colour picker */}
-      <div className={styles.colorRow}>
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => {
-            setColor(e.target.value);
-            setTool('pencil');
-          }}
-          className={styles.colorInput}
-        />
-        {PRESETS.map((c) => (
-          <button
-            key={c}
-            className={`${styles.swatch} ${color === c && tool === 'pencil' ? styles.activeSwatch : ''}`}
-            style={{ background: c }}
-            onClick={() => {
-              setColor(c);
-              setTool('pencil');
-            }}
-          />
-        ))}
+      {/* Undo / Redo */}
+      <div className={styles.toolbar}>
+        <button className={styles.toolBtn} onClick={undo}>
+          Undo
+        </button>
+        <button className={styles.toolBtn} onClick={redo}>
+          Redo
+        </button>
       </div>
+
+      {/* Gradient colour picker */}
+      <GradientColorPicker
+        color={color}
+        onChange={(hex) => {
+          setColor(hex);
+          setTool('pencil');
+        }}
+      />
 
       {/* 6-direction rotation previews */}
       <RotationPreview grid={grid} />
