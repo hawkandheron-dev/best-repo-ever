@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { createEmptyGrid, cloneGrid } from '../spriteEditor/spriteUtils';
+import { createEmptyGrid, cloneGrid, gridToPngDataUrl, downloadPng } from '../spriteEditor/spriteUtils';
 import { SpriteCanvas } from '../components/SpriteCanvas/SpriteCanvas';
 import { GradientColorPicker } from '../components/SpriteCanvas/GradientColorPicker';
 import styles from './SpriteStudioScreen.module.css';
@@ -74,6 +74,10 @@ export function SpriteStudioScreen({ onBack }) {
   const clearCanvas = useCallback(() => {
     pushGrid(createEmptyGrid());
   }, [pushGrid]);
+
+  const savePng = useCallback(() => {
+    downloadPng(gridToPngDataUrl(grid));
+  }, [grid]);
 
   /** Called by the canvas when dropper picks a colour from a pixel. */
   const onPickColor = useCallback((hex) => {
@@ -160,6 +164,10 @@ export function SpriteStudioScreen({ onBack }) {
         <span className={styles.zoomLabel}>{Math.round((zoom / 10) * 100)}%</span>
         <button className={styles.toolBtn} onClick={zoomIn}>
           +
+        </button>
+        <span className={styles.separator} />
+        <button className={styles.toolBtn} onClick={savePng}>
+          Save PNG
         </button>
       </div>
 
