@@ -165,6 +165,61 @@ export function gridToPngDataUrl(grid) {
   return out.toDataURL('image/png');
 }
 
+/**
+ * Load an image file (PNG, JPEG, etc.) into a GRID_SIZE×GRID_SIZE grid.
+ * Images larger than GRID_SIZE are scaled down proportionally to fit.
+ * Returns a Promise that resolves to a 2-D grid array.
+ */
+export function pngToGrid(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Failed to decode image'));
+      img.onload = () => {
+        // Determine target size: scale down to fit GRID_SIZE, or use native size if small enough.
+        const scale = Math.min(1, GRID_SIZE / img.width, GRID_SIZE / img.height);
+        const w = Math.round(img.width * scale) || 1;
+        const h = Math.round(img.height * scale) || 1;
+
+        const cvs = document.createElement('canvas');
+        cvs.width = w;
+        cvs.height = h;
+        const ctx = cvs.getContext('2d');
+        ctx.imageSmoothingEnabled = w < img.width; // smooth when downscaling
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const grid = createEmptyGrid();
+
+        // Centre the image in the grid.
+        const offR = Math.floor((GRID_SIZE - h) / 2);
+        const offC = Math.floor((GRID_SIZE - w) / 2);
+
+        for (let r = 0; r < h; r++) {
+          for (let c = 0; c < w; c++) {
+            const i = (r * w + c) * 4;
+            const a = imgData.data[i + 3];
+            if (a > 0) {
+              const red = imgData.data[i];
+              const grn = imgData.data[i + 1];
+              const blu = imgData.data[i + 2];
+              grid[r + offR][c + offC] =
+                a === 255
+                  ? `#${red.toString(16).padStart(2, '0')}${grn.toString(16).padStart(2, '0')}${blu.toString(16).padStart(2, '0')}`
+                  : `rgba(${red},${grn},${blu},${(a / 255).toFixed(2)})`;
+            }
+          }
+        }
+        resolve(grid);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 /** Trigger a browser download for the given data-URL. */
 export function downloadPng(dataUrl, filename = 'sprite.png') {
   const a = document.createElement('a');

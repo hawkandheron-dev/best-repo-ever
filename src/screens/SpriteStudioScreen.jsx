@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { createEmptyGrid, cloneGrid, gridToPngDataUrl, downloadPng } from '../spriteEditor/spriteUtils';
+import { createEmptyGrid, cloneGrid, gridToPngDataUrl, downloadPng, pngToGrid } from '../spriteEditor/spriteUtils';
 import { SpriteCanvas } from '../components/SpriteCanvas/SpriteCanvas';
 import { GradientColorPicker } from '../components/SpriteCanvas/GradientColorPicker';
 import styles from './SpriteStudioScreen.module.css';
@@ -78,6 +78,18 @@ export function SpriteStudioScreen({ onBack }) {
   const savePng = useCallback(() => {
     downloadPng(gridToPngDataUrl(grid));
   }, [grid]);
+
+  const fileInputRef = useRef(null);
+
+  const loadPng = useCallback(
+    (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      pngToGrid(file).then((imported) => pushGrid(imported));
+      e.target.value = '';           // allow re-selecting the same file
+    },
+    [pushGrid],
+  );
 
   /** Called by the canvas when dropper picks a colour from a pixel. */
   const onPickColor = useCallback((hex) => {
@@ -169,6 +181,16 @@ export function SpriteStudioScreen({ onBack }) {
         <button className={styles.toolBtn} onClick={savePng}>
           Save PNG
         </button>
+        <button className={styles.toolBtn} onClick={() => fileInputRef.current?.click()}>
+          Load PNG
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={loadPng}
+        />
       </div>
 
       {/* Colour picker + recent colours */}
