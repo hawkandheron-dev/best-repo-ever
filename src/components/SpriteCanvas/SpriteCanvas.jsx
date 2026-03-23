@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { renderGridToCanvas } from '../../spriteEditor/spriteUtils';
+import { renderGridToCanvas, floodFill } from '../../spriteEditor/spriteUtils';
 import styles from './SpriteCanvas.module.css';
 
 /**
@@ -9,28 +9,25 @@ import styles from './SpriteCanvas.module.css';
  *   grid        – 32×32 2-D array (null = transparent, string = colour)
  *   onGridChange – (newGrid) => void
  *   color       – current drawing colour (hex string)
- *   tool        – 'pencil' | 'eraser'
+ *   tool        – 'pencil' | 'eraser' | 'fill'
  *   showGrid    – whether to render grid lines
+ *   pixelSize   – screen-pixels per grid cell
  */
-export function SpriteCanvas({ grid, onGridChange, color, tool, showGrid }) {
+export function SpriteCanvas({ grid, onGridChange, color, tool, showGrid, pixelSize }) {
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const GRID_SIZE = grid.length;
 
-  // Pick a pixel-size that fills ~320 px on screen.
-  const pixelSize = Math.floor(320 / GRID_SIZE);
-
-  // Re-render whenever grid, showGrid, or pixelSize change.
   useEffect(() => {
     if (canvasRef.current) {
       renderGridToCanvas(canvasRef.current, grid, pixelSize, showGrid);
     }
   }, [grid, pixelSize, showGrid]);
 
-  const paint = useCallback(
+  const cellFromEvent = useCallback(
     (e) => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) return null;
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
@@ -38,16 +35,33 @@ export function SpriteCanvas({ grid, onGridChange, color, tool, showGrid }) {
       const y = (e.clientY - rect.top) * scaleY;
       const col = Math.floor(x / pixelSize);
       const row = Math.floor(y / pixelSize);
-      if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return;
+      if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return null;
+      return { row, col };
+    },
+    [pixelSize, GRID_SIZE],
+  );
+
+  const paint = useCallback(
+    (e) => {
+      const cell = cellFromEvent(e);
+      if (!cell) return;
+      const { row, col } = cell;
+
+      if (tool === 'fill') {
+        const fillColor = color;
+        const next = floodFill(grid, row, col, fillColor);
+        if (next !== grid) onGridChange(next);
+        return;
+      }
 
       const value = tool === 'eraser' ? null : color;
-      if (grid[row][col] === value) return; // no-op
+      if (grid[row][col] === value) return;
 
       const next = grid.map((r) => [...r]);
       next[row][col] = value;
       onGridChange(next);
     },
-    [grid, onGridChange, color, tool, pixelSize, GRID_SIZE],
+    [grid, onGridChange, color, tool, cellFromEvent],
   );
 
   const onPointerDown = useCallback(
@@ -62,24 +76,29 @@ export function SpriteCanvas({ grid, onGridChange, color, tool, showGrid }) {
 
   const onPointerMove = useCallback(
     (e) => {
-      if (drawing.current) paint(e);
+      // Don't drag-paint with fill tool — one click is enough.
+      if (drawing.current && tool !== 'fill') paint(e);
     },
-    [paint],
+    [paint, tool],
   );
 
   const onPointerUp = useCallback(() => {
     drawing.current = false;
   }, []);
 
+  const totalPx = pixelSize * GRID_SIZE;
+
   return (
-    <canvas
-      ref={canvasRef}
-      className={styles.canvas}
-      style={{ width: pixelSize * GRID_SIZE, height: pixelSize * GRID_SIZE }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
-    />
+    <div className={styles.canvasWrap}>
+      <canvas
+        ref={canvasRef}
+        className={styles.canvas}
+        style={{ width: totalPx, height: totalPx }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+      />
+    </div>
   );
 }

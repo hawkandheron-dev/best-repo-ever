@@ -12,6 +12,30 @@ export function cloneGrid(grid) {
   return grid.map((row) => [...row]);
 }
 
+/* ── Flood fill ──────────────────────────────────────────────────────────── */
+
+/**
+ * Flood-fill from (startRow, startCol) with `fillColor`.
+ * Returns a new grid (does not mutate the input).
+ */
+export function floodFill(grid, startRow, startCol, fillColor) {
+  const size = grid.length;
+  const target = grid[startRow][startCol]; // colour being replaced (or null)
+  if (target === fillColor) return grid;   // already that colour
+
+  const out = grid.map((r) => [...r]);
+  const stack = [[startRow, startCol]];
+
+  while (stack.length > 0) {
+    const [r, c] = stack.pop();
+    if (r < 0 || r >= size || c < 0 || c >= size) continue;
+    if (out[r][c] !== target) continue;
+    out[r][c] = fillColor;
+    stack.push([r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]);
+  }
+  return out;
+}
+
 /* ── Rotation ────────────────────────────────────────────────────────────── */
 
 /**

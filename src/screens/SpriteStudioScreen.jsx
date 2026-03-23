@@ -10,8 +10,12 @@ const MAX_HISTORY = 80;
 export function SpriteStudioScreen({ onBack }) {
   const [grid, setGrid] = useState(() => createEmptyGrid());
   const [color, setColor] = useState('#ffffff');
-  const [tool, setTool] = useState('pencil');   // 'pencil' | 'eraser'
+  const [tool, setTool] = useState('pencil');   // 'pencil' | 'eraser' | 'fill'
   const [showGrid, setShowGrid] = useState(true);
+  const [zoom, setZoom] = useState(10); // pixels per cell (default 10 → 320px)
+
+  const zoomIn = useCallback(() => setZoom((z) => Math.min(z + 2, 24)), []);
+  const zoomOut = useCallback(() => setZoom((z) => Math.max(z - 2, 4)), []);
 
   // Undo / redo stacks (store grid snapshots).
   const undoStack = useRef([]);
@@ -67,6 +71,7 @@ export function SpriteStudioScreen({ onBack }) {
         color={color}
         tool={tool}
         showGrid={showGrid}
+        pixelSize={zoom}
       />
 
       {/* Toolbar */}
@@ -83,6 +88,12 @@ export function SpriteStudioScreen({ onBack }) {
         >
           Eraser
         </button>
+        <button
+          className={`${styles.toolBtn} ${tool === 'fill' ? styles.active : ''}`}
+          onClick={() => setTool('fill')}
+        >
+          Fill
+        </button>
         <button className={styles.toolBtn} onClick={clearCanvas}>
           Clear
         </button>
@@ -94,13 +105,21 @@ export function SpriteStudioScreen({ onBack }) {
         </button>
       </div>
 
-      {/* Undo / Redo */}
+      {/* Undo / Redo / Zoom */}
       <div className={styles.toolbar}>
         <button className={styles.toolBtn} onClick={undo}>
           Undo
         </button>
         <button className={styles.toolBtn} onClick={redo}>
           Redo
+        </button>
+        <span className={styles.separator} />
+        <button className={styles.toolBtn} onClick={zoomOut}>
+          &minus;
+        </button>
+        <span className={styles.zoomLabel}>{Math.round((zoom / 10) * 100)}%</span>
+        <button className={styles.toolBtn} onClick={zoomIn}>
+          +
         </button>
       </div>
 

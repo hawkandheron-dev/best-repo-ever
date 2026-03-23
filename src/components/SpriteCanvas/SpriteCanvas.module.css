@@ -1,7 +1,14 @@
-.canvas {
-  touch-action: none;
+.canvasWrap {
+  overflow: auto;
+  max-width: 100%;
+  max-height: 70vh;
   border: 2px solid #3a3a4e;
   border-radius: 8px;
+}
+
+.canvas {
+  touch-action: none;
   cursor: crosshair;
   image-rendering: pixelated;
+  display: block;
 }
