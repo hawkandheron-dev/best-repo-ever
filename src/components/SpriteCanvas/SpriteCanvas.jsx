@@ -13,7 +13,7 @@ import styles from './SpriteCanvas.module.css';
  *   showGrid    – whether to render grid lines
  *   pixelSize   – screen-pixels per grid cell
  */
-export function SpriteCanvas({ grid, onGridChange, color, tool, showGrid, pixelSize }) {
+export function SpriteCanvas({ grid, onGridChange, color, tool, showGrid, pixelSize, onPickColor }) {
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const GRID_SIZE = grid.length;
@@ -47,6 +47,12 @@ export function SpriteCanvas({ grid, onGridChange, color, tool, showGrid, pixelS
       if (!cell) return;
       const { row, col } = cell;
 
+      if (tool === 'dropper') {
+        const picked = grid[row][col];
+        if (picked && onPickColor) onPickColor(picked);
+        return;
+      }
+
       if (tool === 'fill') {
         const fillColor = color;
         const next = floodFill(grid, row, col, fillColor);
@@ -76,8 +82,8 @@ export function SpriteCanvas({ grid, onGridChange, color, tool, showGrid, pixelS
 
   const onPointerMove = useCallback(
     (e) => {
-      // Don't drag-paint with fill tool — one click is enough.
-      if (drawing.current && tool !== 'fill') paint(e);
+      // Don't drag-paint with fill/dropper — one click is enough.
+      if (drawing.current && tool !== 'fill' && tool !== 'dropper') paint(e);
     },
     [paint, tool],
   );
