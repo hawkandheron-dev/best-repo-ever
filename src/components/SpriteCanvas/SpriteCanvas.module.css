@@ -1,0 +1,7 @@
+.canvas {
+  touch-action: none;
+  border: 2px solid #3a3a4e;
+  border-radius: 8px;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}

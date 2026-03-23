@@ -5,6 +5,7 @@ import { GameScreen } from './screens/GameScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { MenuScreen } from './screens/MenuScreen';
 import { ExperimentScreen } from './screens/ExperimentScreen';
+import { SpriteStudioScreen } from './screens/SpriteStudioScreen';
 import { HexGameProvider } from './experiment/hexGameContext';
 
 function ClassicContent({ onBack }) {
@@ -40,6 +41,10 @@ export default function App() {
         <ExperimentScreen onBack={() => setMode('menu')} testMode />
       </HexGameProvider>
     );
+  }
+
+  if (mode === 'sprite-studio') {
+    return <SpriteStudioScreen onBack={() => setMode('menu')} />;
   }
 
   return null;

@@ -1,0 +1,105 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  padding: 1rem var(--safe-left, 1rem) calc(2rem + var(--safe-bottom, 0px));
+  gap: 1rem;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 360px;
+}
+
+.backBtn {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #3a3a4e;
+  border-radius: 8px;
+  background: #1a1a2c;
+  color: #ccc;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.backBtn:active {
+  background: #2a2a3e;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fab23e;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.toolBtn {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid #3a3a4e;
+  border-radius: 8px;
+  background: #1a1a2c;
+  color: #ccc;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+
+.toolBtn:active {
+  background: #2a2a3e;
+}
+
+.toolBtn.active {
+  border-color: #fab23e;
+  color: #fab23e;
+}
+
+/* ── Colour picker row ────────────────────────────────────────────────── */
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 360px;
+}
+
+.colorInput {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border: 2px solid #3a3a4e;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.1s;
+}
+
+.swatch:active {
+  border-color: #888;
+}
+
+.swatch.activeSwatch {
+  border-color: #fab23e;
+  box-shadow: 0 0 4px #fab23e88;
+}
