@@ -1,70 +1,11 @@
 .container {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   min-height: 100dvh;
   padding: 1rem var(--safe-left, 1rem) calc(2rem + var(--safe-bottom, 0px));
-  gap: 0.75rem;
-  overflow-y: auto;
-}
-
-/* ── Recent colours sidebar ──────────────────────────────────────────── */
-
-.recentSidebar {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  width: 42px;
-  flex-shrink: 0;
-}
-
-.recentLabel {
-  font-size: 0.6rem;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-}
-
-.recentList {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow-y: auto;
-  max-height: calc(100dvh - 6rem);
-  padding: 2px;
-  scrollbar-width: thin;
-  scrollbar-color: #3a3a4e transparent;
-}
-
-.recentSwatch {
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
-  border: 2px solid #3a3a4e;
-  border-radius: 6px;
-  cursor: pointer;
-  padding: 0;
-  transition: border-color 0.1s;
-}
-
-.recentSwatch:active {
-  border-color: #888;
-}
-
-.recentSwatch.recentActive {
-  border-color: #fab23e;
-  box-shadow: 0 0 4px #fab23e88;
-}
-
-/* ── Main column ─────────────────────────────────────────────────────── */
-
-.main {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: 1rem;
-  flex: 1;
-  min-width: 0;
+  overflow-y: auto;
 }
 
 .header {
@@ -137,4 +78,60 @@
 .toolBtn.active {
   border-color: #fab23e;
   color: #fab23e;
+}
+
+/* ── Picker row (recent sidebar + gradient picker) ───────────────────── */
+
+.pickerRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.recentSidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 42px;
+  flex-shrink: 0;
+}
+
+.recentLabel {
+  font-size: 0.6rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  max-height: 280px;
+  padding: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a4e transparent;
+}
+
+.recentSwatch {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border: 2px solid #3a3a4e;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.1s;
+}
+
+.recentSwatch:active {
+  border-color: #888;
+}
+
+.recentSwatch.recentActive {
+  border-color: #fab23e;
+  box-shadow: 0 0 4px #fab23e88;
 }

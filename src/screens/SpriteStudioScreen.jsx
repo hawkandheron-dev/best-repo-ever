@@ -22,6 +22,22 @@ export function SpriteStudioScreen({ onBack }) {
   const undoStack = useRef([]);
   const redoStack = useRef([]);
 
+  /** Track the current color + tool at paint-time via a ref. */
+  const colorRef = useRef(color);
+  colorRef.current = color;
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+
+  /** Add a colour to the recent list (most-recent first, no duplicates). */
+  const addRecent = useCallback((hex) => {
+    setRecentColors((prev) => {
+      const next = prev.filter((c) => c !== hex);
+      next.unshift(hex);
+      if (next.length > MAX_RECENT) next.pop();
+      return next;
+    });
+  }, []);
+
   const pushGrid = useCallback(
     (nextGrid) => {
       setGrid((prev) => {
@@ -30,8 +46,13 @@ export function SpriteStudioScreen({ onBack }) {
         redoStack.current = [];
         return nextGrid;
       });
+      // A grid change from pencil/fill means this color was actually used to draw.
+      const t = toolRef.current;
+      if (t === 'pencil' || t === 'fill') {
+        addRecent(colorRef.current);
+      }
     },
-    [],
+    [addRecent],
   );
 
   const undo = useCallback(() => {
@@ -54,132 +75,111 @@ export function SpriteStudioScreen({ onBack }) {
     pushGrid(createEmptyGrid());
   }, [pushGrid]);
 
-  /** Add a colour to the recent list (most-recent first, no duplicates). */
-  const addRecent = useCallback((hex) => {
-    setRecentColors((prev) => {
-      const next = prev.filter((c) => c !== hex);
-      next.unshift(hex);
-      if (next.length > MAX_RECENT) next.pop();
-      return next;
-    });
+  /** Called by the canvas when dropper picks a colour from a pixel. */
+  const onPickColor = useCallback((hex) => {
+    setColor(hex);
+    setTool('pencil');
   }, []);
 
-  /** Called when the user picks a colour via the gradient picker or a swatch. */
-  const selectColor = useCallback(
-    (hex) => {
-      setColor(hex);
-      setTool('pencil');
-      addRecent(hex);
-    },
-    [addRecent],
-  );
-
-  /** Called by the canvas when dropper picks a colour from a pixel. */
-  const onPickColor = useCallback(
-    (hex) => {
-      setColor(hex);
-      setTool('pencil');
-      addRecent(hex);
-    },
-    [addRecent],
-  );
+  /** Select color from picker or recent swatch (just sets color, no recent tracking). */
+  const selectColor = useCallback((hex) => {
+    setColor(hex);
+    setTool('pencil');
+  }, []);
 
   return (
     <div className={styles.container}>
-      {/* Recent colours sidebar */}
-      {recentColors.length > 0 && (
-        <div className={styles.recentSidebar}>
-          <span className={styles.recentLabel}>Recent</span>
-          <div className={styles.recentList}>
-            {recentColors.map((c) => (
-              <button
-                key={c}
-                className={`${styles.recentSwatch} ${c === color ? styles.recentActive : ''}`}
-                style={{ background: c }}
-                onClick={() => selectColor(c)}
-              />
-            ))}
+      {/* Header */}
+      <div className={styles.header}>
+        <button className={styles.backBtn} onClick={onBack}>
+          &larr; Menu
+        </button>
+        <h1 className={styles.title}>Sprite Studio</h1>
+      </div>
+
+      {/* Drawing canvas */}
+      <SpriteCanvas
+        grid={grid}
+        onGridChange={pushGrid}
+        color={color}
+        tool={tool}
+        showGrid={showGrid}
+        pixelSize={zoom}
+        onPickColor={onPickColor}
+      />
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <button
+          className={`${styles.toolBtn} ${tool === 'pencil' ? styles.active : ''}`}
+          onClick={() => setTool('pencil')}
+        >
+          Pencil
+        </button>
+        <button
+          className={`${styles.toolBtn} ${tool === 'eraser' ? styles.active : ''}`}
+          onClick={() => setTool('eraser')}
+        >
+          Eraser
+        </button>
+        <button
+          className={`${styles.toolBtn} ${tool === 'fill' ? styles.active : ''}`}
+          onClick={() => setTool('fill')}
+        >
+          Fill
+        </button>
+        <button
+          className={`${styles.toolBtn} ${tool === 'dropper' ? styles.active : ''}`}
+          onClick={() => setTool('dropper')}
+        >
+          Dropper
+        </button>
+        <button className={styles.toolBtn} onClick={clearCanvas}>
+          Clear
+        </button>
+        <button
+          className={`${styles.toolBtn} ${showGrid ? styles.active : ''}`}
+          onClick={() => setShowGrid((g) => !g)}
+        >
+          Grid
+        </button>
+      </div>
+
+      {/* Undo / Redo / Zoom */}
+      <div className={styles.toolbar}>
+        <button className={styles.toolBtn} onClick={undo}>
+          Undo
+        </button>
+        <button className={styles.toolBtn} onClick={redo}>
+          Redo
+        </button>
+        <span className={styles.separator} />
+        <button className={styles.toolBtn} onClick={zoomOut}>
+          &minus;
+        </button>
+        <span className={styles.zoomLabel}>{Math.round((zoom / 10) * 100)}%</span>
+        <button className={styles.toolBtn} onClick={zoomIn}>
+          +
+        </button>
+      </div>
+
+      {/* Colour picker + recent colours */}
+      <div className={styles.pickerRow}>
+        {recentColors.length > 0 && (
+          <div className={styles.recentSidebar}>
+            <span className={styles.recentLabel}>Recent</span>
+            <div className={styles.recentList}>
+              {recentColors.map((c) => (
+                <button
+                  key={c}
+                  className={`${styles.recentSwatch} ${c === color ? styles.recentActive : ''}`}
+                  style={{ background: c }}
+                  onClick={() => selectColor(c)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Main column */}
-      <div className={styles.main}>
-        {/* Header */}
-        <div className={styles.header}>
-          <button className={styles.backBtn} onClick={onBack}>
-            &larr; Menu
-          </button>
-          <h1 className={styles.title}>Sprite Studio</h1>
-        </div>
-
-        {/* Drawing canvas */}
-        <SpriteCanvas
-          grid={grid}
-          onGridChange={pushGrid}
-          color={color}
-          tool={tool}
-          showGrid={showGrid}
-          pixelSize={zoom}
-          onPickColor={onPickColor}
-        />
-
-        {/* Toolbar */}
-        <div className={styles.toolbar}>
-          <button
-            className={`${styles.toolBtn} ${tool === 'pencil' ? styles.active : ''}`}
-            onClick={() => setTool('pencil')}
-          >
-            Pencil
-          </button>
-          <button
-            className={`${styles.toolBtn} ${tool === 'eraser' ? styles.active : ''}`}
-            onClick={() => setTool('eraser')}
-          >
-            Eraser
-          </button>
-          <button
-            className={`${styles.toolBtn} ${tool === 'fill' ? styles.active : ''}`}
-            onClick={() => setTool('fill')}
-          >
-            Fill
-          </button>
-          <button
-            className={`${styles.toolBtn} ${tool === 'dropper' ? styles.active : ''}`}
-            onClick={() => setTool('dropper')}
-          >
-            Dropper
-          </button>
-          <button className={styles.toolBtn} onClick={clearCanvas}>
-            Clear
-          </button>
-          <button
-            className={`${styles.toolBtn} ${showGrid ? styles.active : ''}`}
-            onClick={() => setShowGrid((g) => !g)}
-          >
-            Grid
-          </button>
-        </div>
-
-        {/* Undo / Redo / Zoom */}
-        <div className={styles.toolbar}>
-          <button className={styles.toolBtn} onClick={undo}>
-            Undo
-          </button>
-          <button className={styles.toolBtn} onClick={redo}>
-            Redo
-          </button>
-          <span className={styles.separator} />
-          <button className={styles.toolBtn} onClick={zoomOut}>
-            &minus;
-          </button>
-          <span className={styles.zoomLabel}>{Math.round((zoom / 10) * 100)}%</span>
-          <button className={styles.toolBtn} onClick={zoomIn}>
-            +
-          </button>
-        </div>
-
-        {/* Gradient colour picker */}
+        )}
         <GradientColorPicker
           color={color}
           onChange={selectColor}
