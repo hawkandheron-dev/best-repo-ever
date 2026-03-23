@@ -34,5 +34,13 @@ export default function App() {
     );
   }
 
+  if (mode === 'test') {
+    return (
+      <HexGameProvider>
+        <ExperimentScreen onBack={() => setMode('menu')} testMode />
+      </HexGameProvider>
+    );
+  }
+
   return null;
 }

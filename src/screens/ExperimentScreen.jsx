@@ -1,12 +1,37 @@
+import { useState, useEffect, useRef } from 'react';
 import { useHexGame } from '../experiment/hexGameContext';
-import { NEW_GAME, DISMISS_HANDOFF } from '../experiment/hexGameActions';
+import { NEW_GAME, DISMISS_HANDOFF, DISMISS_CAPTURE, DISMISS_FOG_NOTIFICATION } from '../experiment/hexGameActions';
+import { FOG_LIFT_TURN } from '../experiment/hexGameReducer';
 import { HexBoard } from '../components/HexBoard/HexBoard';
 import { ActionPanel } from '../components/ActionPanel/ActionPanel';
 import styles from './ExperimentScreen.module.css';
 
-export function ExperimentScreen({ onBack }) {
+const PIECE_NAMES = { K: 'King', Q: 'Queen', R: 'Rook', B: 'Bishop', N: 'Knight', P: 'Pawn' };
+
+export function ExperimentScreen({ onBack, testMode = false }) {
   const { state, dispatch } = useHexGame();
-  const { turn, foundArtifacts, winner, winReason, countdown, handoff, phase } = state;
+  const {
+    turn, foundArtifacts, winner, winReason,
+    countdown, handoff, phase, captureNotification,
+    fogLiftPending, fogLifted, turnCount,
+  } = state;
+
+  // Test mode options — easily extended with more flags later
+  const [testOpts, setTestOpts] = useState({ showArtifacts: false });
+
+  // Artifact-found toast
+  const prevFoundRef = useRef(foundArtifacts);
+  const [artifactToast, setArtifactToast] = useState(false);
+  useEffect(() => {
+    if (foundArtifacts > prevFoundRef.current) {
+      setArtifactToast(true);
+      const t = setTimeout(() => setArtifactToast(false), 2000);
+      return () => clearTimeout(t);
+    }
+    prevFoundRef.current = foundArtifacts;
+  }, [foundArtifacts]);
+
+  const turnsUntilReveal = FOG_LIFT_TURN - turnCount;
 
   return (
     <div className={styles.screen}>
@@ -18,14 +43,34 @@ export function ExperimentScreen({ onBack }) {
           <span className={styles.artifactCount}>
             ★ {foundArtifacts}/3 artifacts
           </span>
+          {!fogLifted && !winner && (
+            <span className={styles.fogCountdown}>
+              {turnsUntilReveal} {turnsUntilReveal === 1 ? 'turn' : 'turns'} until ALL IS REVEALED
+            </span>
+          )}
         </div>
         <button className={styles.newGameBtn} onClick={() => dispatch({ type: NEW_GAME })}>
           New
         </button>
       </div>
 
+      {/* ── Test mode controls bar ───────────────────────────────────────── */}
+      {testMode && (
+        <div className={styles.testBar}>
+          <span className={styles.testLabel}>🧪 Test</span>
+          <label className={styles.testToggle}>
+            <input
+              type="checkbox"
+              checked={testOpts.showArtifacts}
+              onChange={e => setTestOpts(o => ({ ...o, showArtifacts: e.target.checked }))}
+            />
+            Reveal artifacts
+          </label>
+        </div>
+      )}
+
       {/* ── Hex Board ───────────────────────────────────────────────────── */}
-      <HexBoard />
+      <HexBoard showAllArtifacts={testMode && testOpts.showArtifacts} />
 
       {/* ── Action Panel ────────────────────────────────────────────────── */}
       {phase !== 'game-over' && <ActionPanel />}
@@ -38,16 +83,19 @@ export function ExperimentScreen({ onBack }) {
             <strong>Player 1</strong>
             <ul>
               <li>You see the whole board. Player 2 is in fog.</li>
-              <li>Up to 2 actions: Move, Add a piece, or Excavate.</li>
+              <li>Up to 3 actions: Move, Add a piece, Excavate, or Scry.</li>
               <li>Excavate any hex to flip it — find all 3 ★ artifacts to win.</li>
-              <li>Pawns: add 2 for 1 action. Queens can't move the turn added.</li>
+              <li>Pawns: add 2 for 1 action; move to 6 adjacent or 6 push-2 hexes (12 total).</li>
+              <li>Queens: frozen for 3 half-turns after placement.</li>
             </ul>
           </div>
           <div className={styles.howToSection}>
             <strong>Player 2</strong>
             <ul>
               <li>You only see hexes adjacent to your pieces — rest is fog.</li>
-              <li>Up to 2 actions: Move or Add a piece.</li>
+              <li>Up to 2 actions: Move, Add a piece, or Scry.</li>
+              <li>Scry reveals the direction to Player 1's King.</li>
+              <li>Starts with King and 2 Pawns.</li>
               <li>Capture Player 1's King to win.</li>
             </ul>
           </div>
@@ -55,13 +103,15 @@ export function ExperimentScreen({ onBack }) {
             <strong>Terrain</strong>
             <ul>
               <li>▲ Mountains — impassable for all pieces.</li>
-              <li>≋ Swamp — passable but costs both actions to enter.</li>
-              <li>≈ Water — blocked; move a Rook there to build a bridge.</li>
-              <li>Bridge — sliding pieces (Rook, Bishop, Queen) can cross.</li>
             </ul>
           </div>
         </div>
       </details>
+
+      {/* ── Artifact found toast ────────────────────────────────────────── */}
+      {artifactToast && (
+        <div className={styles.artifactToast}>★ Artifact found!</div>
+      )}
 
       {/* ── Countdown overlay ───────────────────────────────────────────── */}
       {countdown !== null && (
@@ -75,9 +125,34 @@ export function ExperimentScreen({ onBack }) {
       {handoff && (
         <div className={styles.overlay} onClick={() => dispatch({ type: DISMISS_HANDOFF })}>
           <div className={styles.handoffTitle}>
-            Player {turn === 1 ? 2 : 1} — hand the phone to
+            Player {turn} — hand the phone to
           </div>
-          <div className={styles.handoffPlayer}>Player {turn}</div>
+          <div className={styles.handoffPlayer}>Player {turn === 1 ? 2 : 1}</div>
+          <p className={styles.handoffHint}>Tap anywhere to continue</p>
+        </div>
+      )}
+
+      {/* ── Capture notification overlay ────────────────────────────────── */}
+      {captureNotification && !handoff && (
+        <div className={styles.overlay} onClick={() => dispatch({ type: DISMISS_CAPTURE })}>
+          <div className={styles.handoffTitle}>Pieces lost</div>
+          {captureNotification.captures.map((c, i) => (
+            <p key={i} className={styles.handoffHint}>
+              {PIECE_NAMES[c.capturedPiece]} captured by enemy {PIECE_NAMES[c.byPiece]}
+            </p>
+          ))}
+          <p className={styles.handoffHint} style={{ marginTop: '1rem', opacity: 0.5 }}>Tap to continue</p>
+        </div>
+      )}
+
+      {/* ── Fog-lift notification overlay ───────────────────────────────── */}
+      {fogLiftPending && !captureNotification && !handoff && (
+        <div className={styles.overlay} onClick={() => dispatch({ type: DISMISS_FOG_NOTIFICATION })}>
+          <div className={styles.winnerIcon}>👁</div>
+          <div className={styles.winnerTitle}>All is revealed!</div>
+          <p className={styles.winReason}>
+            Fog of war now removed and artifact coordinates identified. Happy hunting!
+          </p>
           <p className={styles.handoffHint}>Tap anywhere to continue</p>
         </div>
       )}

@@ -1,11 +1,17 @@
 // HexGameEngine — pure functions, no mutation
-// Piece codes: 'K' King, 'Q' Queen, 'R' Rook, 'B' Bishop, 'N' Knight, 'P' Pawn
-// board: Map<hexKey, { piece, player, justAdded?, isBridge? }>
-// terrain: Map<hexKey, 'mountain'|'swamp'|'water'|'bridge'>  (absent = normal)
+// Piece codes: 'K' King, 'Q' Queen, 'P' Pawn, 'R' Rook
+// board: Map<hexKey, { piece, player, frozenTurns? }>
+// terrain: Map<hexKey, 'mountain'>  (absent = normal)
 // player: 1 | 2
+//
+// Rook rules:
+//   • Slides in all 6 hex directions like a Queen
+//   • Can only be captured by Pawns (Queens and Kings are blocked by enemy Rooks)
+//   • Cannot capture a King
+//   • Neither player starts with Rooks; must be deployed via Add Piece
 
 import {
-  DIRECTIONS, BISHOP_DIRECTIONS, KNIGHT_MOVES,
+  DIRECTIONS,
   hexKey, parseKey, isValid, buildHexGrid, hexDist,
 } from './hexMath';
 
@@ -15,31 +21,18 @@ export function terrainOf(key, terrain) {
   return terrain.get(key) ?? 'normal';
 }
 
-// Returns: 'no' | 'yes' | 'yes-stop' | 'pass-through'
-function canEnter(key, board, player, terrain, pieceType) {
-  const t = terrainOf(key, terrain);
-  if (t === 'mountain') return 'no';
-  if (t === 'water') {
-    // Only Rooks can enter open water (to become a bridge)
-    return pieceType === 'R' ? 'yes-stop' : 'no';
-  }
-  if (t === 'bridge') {
-    const resident = board.get(key);
-    if (!resident) return 'yes';
-    if (resident.player === player) {
-      // Own bridge: sliding pieces pass through; non-sliders blocked
-      return 'pass-through';
-    } else {
-      // Enemy bridge: only Rooks can capture & replace
-      return pieceType === 'R' ? 'yes-stop' : 'no';
-    }
-  }
-  // Normal or swamp
+// Returns: 'no' | 'yes' | 'yes-stop'
+// movingPiece: piece code of the piece being moved (for capture-rule checks)
+function canEnter(key, board, player, terrain, movingPiece = null) {
+  if (terrainOf(key, terrain) === 'mountain') return 'no';
   const resident = board.get(key);
-  if (resident) {
-    return resident.player === player ? 'no' : 'yes-stop'; // capture enemy
-  }
-  return t === 'swamp' ? 'yes-stop' : 'yes'; // swamp stops sliding
+  if (!resident) return 'yes';
+  if (resident.player === player) return 'no';
+  // Enemy Rook: only Pawns can capture it; everyone else is blocked
+  if (resident.piece === 'R') return movingPiece === 'P' ? 'yes-stop' : 'no';
+  // Rook cannot capture the King
+  if (movingPiece === 'R' && resident.piece === 'K') return 'no';
+  return 'yes-stop';
 }
 
 // ── Movement ─────────────────────────────────────────────────────────────────
@@ -47,29 +40,25 @@ function canEnter(key, board, player, terrain, pieceType) {
 export function getLegalMoves(fromKey, board, player, terrain) {
   const entry = board.get(fromKey);
   if (!entry || entry.player !== player) return [];
-  if (entry.isBridge) return [];                          // bridges are immovable
-  if (entry.piece === 'Q' && entry.justAdded) return [];
+  if (entry.piece === 'Q' && (entry.frozenTurns ?? 0) > 0) return [];
   const [q, r] = parseKey(fromKey);
   switch (entry.piece) {
     case 'K': return kingMoves(q, r, board, player, terrain);
     case 'Q': return queenMoves(q, r, board, player, terrain);
-    case 'R': return rookMoves(q, r, board, player, terrain);
-    case 'B': return bishopMoves(q, r, board, player, terrain);
-    case 'N': return knightMoves(q, r, board, player, terrain);
     case 'P': return pawnMoves(q, r, board, player, terrain);
+    case 'R': return rookMoves(q, r, board, player, terrain);
     default:  return [];
   }
 }
 
-function slide(q, r, board, player, dirs, terrain, pieceType) {
+function slide(q, r, board, player, dirs, terrain, movingPiece = null) {
   const moves = [];
   for (const [dq, dr] of dirs) {
     let nq = q + dq, nr = r + dr;
     while (isValid(nq, nr)) {
       const key = hexKey(nq, nr);
-      const result = canEnter(key, board, player, terrain, pieceType);
+      const result = canEnter(key, board, player, terrain, movingPiece);
       if (result === 'no') break;
-      if (result === 'pass-through') { nq += dq; nr += dr; continue; }
       moves.push(key);
       if (result === 'yes-stop') break;
       nq += dq; nr += dr;
@@ -78,13 +67,13 @@ function slide(q, r, board, player, dirs, terrain, pieceType) {
   return moves;
 }
 
-function singleStep(q, r, offsets, board, player, terrain, pieceType) {
+function singleStep(q, r, offsets, board, player, terrain, movingPiece = null) {
   return offsets
     .map(([dq, dr]) => hexKey(q + dq, r + dr))
     .filter(k => {
       const [nq, nr] = parseKey(k);
       if (!isValid(nq, nr)) return false;
-      const result = canEnter(k, board, player, terrain, pieceType);
+      const result = canEnter(k, board, player, terrain, movingPiece);
       return result === 'yes' || result === 'yes-stop';
     });
 }
@@ -92,44 +81,39 @@ function singleStep(q, r, offsets, board, player, terrain, pieceType) {
 function kingMoves(q, r, board, player, terrain) {
   return singleStep(q, r, DIRECTIONS, board, player, terrain, 'K');
 }
+
+function queenMoves(q, r, board, player, terrain) {
+  return slide(q, r, board, player, DIRECTIONS, terrain, 'Q');
+}
+
 function rookMoves(q, r, board, player, terrain) {
   return slide(q, r, board, player, DIRECTIONS, terrain, 'R');
 }
-function bishopMoves(q, r, board, player, terrain) {
-  return slide(q, r, board, player, BISHOP_DIRECTIONS, terrain, 'B');
-}
-function queenMoves(q, r, board, player, terrain) {
-  return [
-    ...slide(q, r, board, player, DIRECTIONS, terrain, 'Q'),
-    ...slide(q, r, board, player, BISHOP_DIRECTIONS, terrain, 'Q'),
-  ];
-}
-function knightMoves(q, r, board, player, terrain) {
-  return singleStep(q, r, KNIGHT_MOVES, board, player, terrain, 'N');
-}
 
-// P1 moves north (r−): forward (0,−1), captures (1,−1) and (−1,0)
-// P2 moves south (r+): forward (0,+1), captures (1,0) and (−1,+1)
+// Omnidirectional: all 6 adjacent hexes + 6 push-2 hexes (intermediate must be clear)
 function pawnMoves(q, r, board, player, terrain) {
   const moves = [];
-  const [fq, fr] = player === 1 ? [0, -1] : [0, 1];
-  const caps     = player === 1 ? [[1, -1], [-1, 0]] : [[1, 0], [-1, 1]];
-
-  const fwdKey = hexKey(q + fq, r + fr);
-  if (isValid(q + fq, r + fr)) {
-    const t = terrainOf(fwdKey, terrain);
-    if (!board.has(fwdKey) && t !== 'mountain' && t !== 'water' && t !== 'bridge') {
-      moves.push(fwdKey);
-    }
+  // Ring 1: all 6 adjacent hexes
+  for (const [dq, dr] of DIRECTIONS) {
+    const nq = q + dq, nr = r + dr;
+    if (!isValid(nq, nr)) continue;
+    const key = hexKey(nq, nr);
+    if (terrainOf(key, terrain) === 'mountain') continue;
+    const resident = board.get(key);
+    if (!resident || resident.player !== player) moves.push(key);
   }
-  for (const [dq, dr] of caps) {
-    const cq = q + dq, cr = r + dr;
-    if (!isValid(cq, cr)) continue;
-    const cKey = hexKey(cq, cr);
-    const t = terrainOf(cKey, terrain);
-    if (t === 'mountain' || t === 'water' || t === 'bridge') continue;
-    const resident = board.get(cKey);
-    if (resident && resident.player !== player) moves.push(cKey);
+  // Ring 2: 6 push-2 hexes — intermediate must be empty and not a mountain
+  for (const [dq, dr] of DIRECTIONS) {
+    const iq = q + dq,     ir = r + dr;       // intermediate
+    const nq = q + 2 * dq, nr = r + 2 * dr;   // destination
+    if (!isValid(iq, ir) || !isValid(nq, nr)) continue;
+    const iKey = hexKey(iq, ir);
+    if (terrainOf(iKey, terrain) === 'mountain') continue;
+    if (board.has(iKey)) continue; // any piece blocks the push
+    const key = hexKey(nq, nr);
+    if (terrainOf(key, terrain) === 'mountain') continue;
+    const resident = board.get(key);
+    if (!resident || resident.player !== player) moves.push(key);
   }
   return moves;
 }
@@ -150,6 +134,75 @@ export function getExcavationTargets(board, player, hexGrid) {
   return [...targets];
 }
 
+// ── Scry ──────────────────────────────────────────────────────────────────────
+
+export function getScryTargets(board) {
+  const targets = [];
+  for (const [key, entry] of board) {
+    if (entry.player !== 1) continue;
+    targets.push(key);
+  }
+  return targets;
+}
+
+// Returns { fromKey, directionAngle, caretCount } or null if no unfound artifacts.
+// directionAngle is an exact float (degrees) pointing toward the nearest artifact.
+export function computeScryResult(fromKey, artifacts, excavated) {
+  const unfound = [...artifacts].filter(k => !excavated.has(k));
+  if (unfound.length === 0) return null;
+
+  const [fq, fr] = parseKey(fromKey);
+
+  // Find nearest unfound artifact by hex distance
+  let nearestKey = unfound[0], nearestDist = Infinity;
+  for (const ak of unfound) {
+    const [aq, ar] = parseKey(ak);
+    const d = hexDist(fq, fr, aq, ar);
+    if (d < nearestDist) { nearestDist = d; nearestKey = ak; }
+  }
+
+  const [aq, ar] = parseKey(nearestKey);
+
+  // Pointy-top hex → exact pixel-space direction (HEX_SIZE cancels in atan2)
+  const dx = Math.sqrt(3) * (aq - fq) + (Math.sqrt(3) / 2) * (ar - fr);
+  const dy = 1.5 * (ar - fr);
+  const directionAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+  // Caret count based on distance
+  const caretCount = nearestDist <= 3 ? 3 : nearestDist <= 7 ? 2 : 1;
+
+  return { fromKey, directionAngle, caretCount };
+}
+
+// Returns P2 piece keys that can scry (all P2 pieces).
+export function getP2ScryTargets(board) {
+  const targets = [];
+  for (const [key, entry] of board) {
+    if (entry.player === 2) targets.push(key);
+  }
+  return targets;
+}
+
+// Returns { fromKey, directionAngle, caretCount } pointing toward P1's King, or null.
+export function computeP2ScryResult(fromKey, board) {
+  let p1KingKey = null;
+  for (const [key, entry] of board) {
+    if (entry.player === 1 && entry.piece === 'K') { p1KingKey = key; break; }
+  }
+  if (!p1KingKey) return null;
+
+  const [fq, fr] = parseKey(fromKey);
+  const [kq, kr] = parseKey(p1KingKey);
+  const dist = hexDist(fq, fr, kq, kr);
+
+  const dx = Math.sqrt(3) * (kq - fq) + (Math.sqrt(3) / 2) * (kr - fr);
+  const dy = 1.5 * (kr - fr);
+  const directionAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+  const caretCount = dist <= 3 ? 3 : dist <= 7 ? 2 : 1;
+
+  return { fromKey, directionAngle, caretCount };
+}
+
 // ── Placement ─────────────────────────────────────────────────────────────────
 
 export function getPlacementTargets(board, player, hexGrid, terrain) {
@@ -160,8 +213,7 @@ export function getPlacementTargets(board, player, hexGrid, terrain) {
     for (const [dq, dr] of DIRECTIONS) {
       const nk = hexKey(q + dq, r + dr);
       if (!hexGrid.has(nk) || board.has(nk)) continue;
-      const t = terrainOf(nk, terrain);
-      if (t !== 'mountain' && t !== 'water' && t !== 'bridge') targets.add(nk);
+      if (terrainOf(nk, terrain) !== 'mountain') targets.add(nk);
     }
   }
   return [...targets];
@@ -169,8 +221,8 @@ export function getPlacementTargets(board, player, hexGrid, terrain) {
 
 // ── Terrain action cost ───────────────────────────────────────────────────────
 
-export function moveCost(toKey, terrain) {
-  return terrainOf(toKey, terrain) === 'swamp' ? 2 : 1;
+export function moveCost(_toKey, _terrain) {
+  return 1;
 }
 
 // ── Win detection ─────────────────────────────────────────────────────────────
@@ -206,37 +258,49 @@ export function buildInitialState() {
   const hexGrid = buildHexGrid();
   const board = new Map();
 
-  // Player 1 — south (high r)
-  board.set(hexKey(0, 8),   { piece: 'K', player: 1 });
+  // Randomise starting positions ────────────────────────────────────────────
+  const P2_COMPANION = [[-1, 1], [1, 1]]; // offsets from P2 King
 
-  // Player 2 — north (low r)
-  board.set(hexKey(0, -8),  { piece: 'K', player: 2 });
-  board.set(hexKey(2, -8),  { piece: 'N', player: 2 });
-  board.set(hexKey(-1, -7), { piece: 'P', player: 2 });
-  board.set(hexKey(1, -7),  { piece: 'P', player: 2 });
+  // P1: King only — southern outer zone (r ≥ 7, |q| ≤ 5)
+  const p1Candidates = [...hexGrid].filter(k => {
+    const [q, r] = parseKey(k);
+    return r >= 7 && Math.abs(q) <= 5;
+  });
+  const [p1Key] = pickRandom(p1Candidates, 1);
+  const [p1q, p1r] = parseKey(p1Key);
+  board.set(p1Key, { piece: 'K', player: 1 });
 
-  // Protected zones: radius-3 around each starting cluster — no terrain placed there
+  // P2: King + companions — northern outer zone (r ≤ -7, |q| ≤ 5)
+  // Filter to positions where all companion hexes are also on the grid
+  const p2Candidates = [...hexGrid].filter(k => {
+    const [q, r] = parseKey(k);
+    if (r > -7 || Math.abs(q) > 5) return false;
+    return P2_COMPANION.every(([dq, dr]) => hexGrid.has(hexKey(q + dq, r + dr)));
+  });
+  const [p2Key] = pickRandom(p2Candidates, 1);
+  const [p2q, p2r] = parseKey(p2Key);
+  board.set(p2Key,                    { piece: 'K', player: 2 });
+  board.set(hexKey(p2q - 1, p2r + 1), { piece: 'P', player: 2 });
+  board.set(hexKey(p2q + 1, p2r + 1), { piece: 'P', player: 2 });
+
+  // Protected zones: radius-3 around each King — no terrain placed there
   const protectedZone = new Set(board.keys());
-  for (const [sq, sr] of [[0, 8], [0, -8]]) {
+  for (const [sq, sr] of [[p1q, p1r], [p2q, p2r]]) {
     for (const k of hexGrid) {
       const [q, r] = parseKey(k);
       if (hexDist(q, r, sq, sr) <= 3) protectedZone.add(k);
     }
   }
 
-  // Generate terrain
+  // Generate terrain — mountains only
   const terrain = new Map();
   for (const key of hexGrid) {
     if (protectedZone.has(key)) continue;
     const [, r] = parseKey(key);
     const inMiddle = Math.abs(r) <= 3;
     const roll = Math.random();
-    const mtn   = inMiddle ? 0.07 : 0.18;
-    const water = inMiddle ? 0.07 : 0.14;
-    const swamp = inMiddle ? 0.08 : 0.10;
-    if      (roll < mtn)              terrain.set(key, 'mountain');
-    else if (roll < mtn + water)      terrain.set(key, 'water');
-    else if (roll < mtn + water + swamp) terrain.set(key, 'swamp');
+    const mtn = inMiddle ? 0.07 : 0.18;
+    if (roll < mtn) terrain.set(key, 'mountain');
   }
 
   // Artifacts: middle band, only on normal (unset) terrain
