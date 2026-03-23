@@ -126,9 +126,9 @@ export function renderGridToCanvas(canvas, grid, pixelSize, showGrid) {
     }
   }
 
-  // Grid overlay.
+  // Grid overlay — use dark lines so they stay visible on light fills.
   if (showGrid) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= size; i++) {
       const pos = i * pixelSize;

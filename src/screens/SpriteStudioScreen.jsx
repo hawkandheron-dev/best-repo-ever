@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { createEmptyGrid, cloneGrid } from '../spriteEditor/spriteUtils';
 import { SpriteCanvas } from '../components/SpriteCanvas/SpriteCanvas';
-import { RotationPreview } from '../components/SpriteCanvas/RotationPreview';
 import { GradientColorPicker } from '../components/SpriteCanvas/GradientColorPicker';
 import styles from './SpriteStudioScreen.module.css';
 
@@ -132,8 +131,6 @@ export function SpriteStudioScreen({ onBack }) {
         }}
       />
 
-      {/* 6-direction rotation previews */}
-      <RotationPreview grid={grid} />
     </div>
   );
 }
