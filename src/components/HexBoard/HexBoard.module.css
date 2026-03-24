@@ -6,17 +6,17 @@
   overflow: hidden;
   background: #1a3408;
   border-radius: 0;
+  cursor: pointer;
 }
 
-.svg {
+.canvas {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-/* Center the hex board group in SVG coordinate space */
-.boardGroup {
-  transform: translate(50%, 50%);
+  /* Nearest-neighbor upscaling for pixel art effect */
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 /* ── Zoom controls ────────────────────────────────────────────────────── */
