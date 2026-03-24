@@ -5,7 +5,7 @@
   position: relative;
   overflow: hidden;
   background: #1a3408;
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 .svg {
@@ -31,21 +31,25 @@
 }
 
 .zoomControls button {
-  width: 2.2rem;
-  height: 2.2rem;
-  background: rgba(28, 44, 96, 0.90);
-  border: 2px solid #c0a028;
-  border-radius: 6px;
+  width: 2.4rem;
+  height: 2.4rem;
+  background: #1a2448;
+  border: 3px solid #c0a028;
+  border-radius: 0;
   color: #f0e8b0;
-  font-size: 1.4rem;
+  font-family: var(--pixel-font);
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
 }
 
 .zoomControls button:active {
-  background: rgba(56, 80, 152, 0.95);
+  background: #283878;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  transform: translate(2px, 2px);
 }

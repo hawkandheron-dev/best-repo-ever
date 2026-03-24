@@ -295,7 +295,7 @@ export function HexBoard({ showAllArtifacts = false }) {
                   points={hexPolygonPoints(x, y, HEX_SIZE)}
                   fill={hexFill(key, t, inFog)}
                   stroke={hexStroke(key, t)}
-                  strokeWidth={key === selectedPiece ? 2.5 : 1}
+                  strokeWidth={key === selectedPiece ? 3 : 1.5}
                 />
 
                 {/* Terrain decoration (skip in deep fog for performance, but terrain is always visible) */}
@@ -309,17 +309,17 @@ export function HexBoard({ showAllArtifacts = false }) {
 
                 {/* Excavated empty */}
                 {isExcavatedEmpty && !inFog && (
-                  <text x={x} y={y + 5} textAnchor="middle" fontSize="14" fill="#8a6820" opacity={0.9} pointerEvents="none">×</text>
+                  <text x={x} y={y + 5} textAnchor="middle" fontSize="14" fill="#8a6820" opacity={0.9} pointerEvents="none" fontFamily="'Press Start 2P', monospace">×</text>
                 )}
 
                 {/* Found artifact (excavated) */}
                 {isArtifactFound && !inFog && (
-                  <text x={x} y={y + 7} textAnchor="middle" fontSize="18" fill="#f0d020" pointerEvents="none">★</text>
+                  <text x={x} y={y + 6} textAnchor="middle" fontSize="12" fill="#f0d020" pointerEvents="none" fontFamily="'Press Start 2P', monospace">★</text>
                 )}
 
                 {/* Revealed artifact (fog lifted, not yet excavated) */}
                 {isArtifactRevealed && (
-                  <text x={x} y={y + 7} textAnchor="middle" fontSize="18" fill="#f0d020" opacity={0.45} pointerEvents="none">★</text>
+                  <text x={x} y={y + 6} textAnchor="middle" fontSize="12" fill="#f0d020" opacity={0.45} pointerEvents="none" fontFamily="'Press Start 2P', monospace">★</text>
                 )}
 
                 {/* Piece glyph — hide player-1 pieces when fogged */}
@@ -329,6 +329,8 @@ export function HexBoard({ showAllArtifacts = false }) {
                     textAnchor="middle"
                     fontSize={20}
                     fill={piece.player === 1 ? '#3868c8' : '#c83030'}
+                    stroke="#000"
+                    strokeWidth={0.8}
                     opacity={(piece.frozenTurns ?? 0) > 0 ? 0.55 : 1}
                     pointerEvents="none"
                     fontFamily="serif"
@@ -339,7 +341,7 @@ export function HexBoard({ showAllArtifacts = false }) {
 
                 {/* Legal move dot (empty or bridge-passable hex) */}
                 {isLegalEmpty && !inFog && (
-                  <circle cx={x} cy={y} r={5} fill="#38e040" opacity={0.75} pointerEvents="none" />
+                  <rect x={x - 5} y={y - 5} width={10} height={10} fill="#38e040" opacity={0.75} pointerEvents="none" />
                 )}
               </g>
             );
@@ -362,7 +364,7 @@ export function HexBoard({ showAllArtifacts = false }) {
                 fontSize={12}
                 fill="#50c8f0"
                 pointerEvents="none"
-                fontFamily="monospace"
+                fontFamily="'Press Start 2P', monospace"
                 transform={`rotate(${angle}, ${tx}, ${ty})`}
               >
                 {'›'.repeat(caretCount)}
