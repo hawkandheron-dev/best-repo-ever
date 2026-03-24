@@ -3,8 +3,8 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: #111128;
-  border-top: 1px solid #2a2a44;
+  background: #283060;
+  border-top: 2px solid #c0a028;
 }
 
 .status {
@@ -16,7 +16,7 @@
 .playerLabel {
   font-weight: 700;
   font-size: 0.9rem;
-  color: #d0d0f0;
+  color: #f0e890;
 }
 
 .dots {
@@ -28,7 +28,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #6060dd;
+  background: #f0c030;
   display: block;
 }
 
@@ -36,21 +36,21 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #2a2a44;
-  border: 1px solid #3a3a60;
+  background: #1a2448;
+  border: 1px solid #4878c0;
   display: block;
 }
 
 .actionsLeft {
   font-size: 0.75rem;
-  color: #888;
+  color: #90b8e8;
   margin-left: auto;
 }
 
 .prompt {
   margin: 0;
   font-size: 0.8rem;
-  color: #a0a0c0;
+  color: #c8e0f8;
   text-align: center;
   font-style: italic;
 }
@@ -63,17 +63,17 @@
 .actionBtn {
   flex: 1;
   padding: 0.6rem 0.25rem;
-  background: #1e1e40;
-  border: 1px solid #3a3a6a;
+  background: #1a2448;
+  border: 1px solid #4878c0;
   border-radius: 8px;
-  color: #c0c0e0;
+  color: #c8e0f8;
   font-size: 0.85rem;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 .actionBtn:active:not(:disabled) {
-  background: #2a2a58;
+  background: #283878;
 }
 
 .actionBtn:disabled {
@@ -90,9 +90,9 @@
 .cancelBtn {
   padding: 0.5rem 0.75rem;
   background: none;
-  border: 1px solid #3a3a5a;
+  border: 1px solid #4878c0;
   border-radius: 8px;
-  color: #888;
+  color: #90b8e8;
   font-size: 0.85rem;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -101,10 +101,10 @@
 .endTurnBtn {
   flex: 1;
   padding: 0.6rem;
-  background: #2a1a4a;
-  border: 1px solid #5a3a8a;
+  background: #287820;
+  border: 2px solid #68c830;
   border-radius: 8px;
-  color: #c0a0e0;
+  color: #c8f870;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
@@ -112,5 +112,5 @@
 }
 
 .endTurnBtn:active {
-  background: #38205e;
+  background: #387828;
 }

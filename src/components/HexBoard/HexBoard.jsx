@@ -17,13 +17,13 @@ const PIECE_GLYPHS = {
 // ── Terrain styling ──────────────────────────────────────────────────────────
 
 const TERRAIN_FILL = {
-  normal:   '#1a1a2c',
-  mountain: '#2c261c',
+  normal:   '#4c9818',   // bright ALTTP grass green
+  mountain: '#8c7040',   // warm mountain brown
 };
 
 const TERRAIN_STROKE = {
-  normal:   '#252538',
-  mountain: '#3a3228',
+  normal:   '#386010',   // dark green hex border
+  mountain: '#6a5030',   // dark brown hex border
 };
 
 // SVG decoration rendered inside each terrain hex
@@ -35,12 +35,12 @@ function TerrainDecoration({ x, y, terrain }) {
     const pts2 = `${x + s * 0.22},${y - s * 0.3} ${x - s * 0.08},${y + s * 0.28} ${x + s * 0.52},${y + s * 0.28}`;
     return (
       <>
-        <polygon points={pts1} fill="#3a3228" stroke="#4a4030" strokeWidth={0.5} pointerEvents="none" />
-        <polygon points={pts2} fill="#4a3e2a" stroke="none" pointerEvents="none" />
+        <polygon points={pts1} fill="#7a5828" stroke="#6a4820" strokeWidth={0.5} pointerEvents="none" />
+        <polygon points={pts2} fill="#9a7840" stroke="none" pointerEvents="none" />
         {/* Snow cap */}
         <polygon
           points={`${x},${y - s * 0.55} ${x - s * 0.12},${y - s * 0.3} ${x + s * 0.12},${y - s * 0.3}`}
-          fill="#d0ccc0" pointerEvents="none"
+          fill="#f0ece0" pointerEvents="none"
         />
       </>
     );
@@ -247,15 +247,15 @@ export function HexBoard({ showAllArtifacts = false }) {
 
   // ── Hex fill / stroke ────────────────────────────────────────────────────
   function hexFill(key, t, inFog) {
-    if (inFog) return '#080810';
-    if (key === selectedPiece) return '#5c500e';
-    if (legalSet.has(key)) return '#0e3a0e';
-    if (excavated.has(key) && t === 'normal') return artifacts.has(key) ? '#2e1e06' : '#14141e';
+    if (inFog) return '#1c2c40';
+    if (key === selectedPiece) return '#b89010';
+    if (legalSet.has(key)) return '#186818';
+    if (excavated.has(key) && t === 'normal') return artifacts.has(key) ? '#886808' : '#386010';
     return TERRAIN_FILL[t] ?? TERRAIN_FILL.normal;
   }
   function hexStroke(key, t) {
-    if (key === selectedPiece) return '#f0d050';
-    if (legalSet.has(key)) return '#40b040';
+    if (key === selectedPiece) return '#f0d020';
+    if (legalSet.has(key)) return '#38d028';
     return TERRAIN_STROKE[t] ?? TERRAIN_STROKE.normal;
   }
 
@@ -309,17 +309,17 @@ export function HexBoard({ showAllArtifacts = false }) {
 
                 {/* Excavated empty */}
                 {isExcavatedEmpty && !inFog && (
-                  <text x={x} y={y + 5} textAnchor="middle" fontSize="14" fill="#555" opacity={0.8} pointerEvents="none">×</text>
+                  <text x={x} y={y + 5} textAnchor="middle" fontSize="14" fill="#8a6820" opacity={0.9} pointerEvents="none">×</text>
                 )}
 
                 {/* Found artifact (excavated) */}
                 {isArtifactFound && !inFog && (
-                  <text x={x} y={y + 7} textAnchor="middle" fontSize="18" fill="#f0a020" pointerEvents="none">★</text>
+                  <text x={x} y={y + 7} textAnchor="middle" fontSize="18" fill="#f0d020" pointerEvents="none">★</text>
                 )}
 
                 {/* Revealed artifact (fog lifted, not yet excavated) */}
                 {isArtifactRevealed && (
-                  <text x={x} y={y + 7} textAnchor="middle" fontSize="18" fill="#f0a020" opacity={0.45} pointerEvents="none">★</text>
+                  <text x={x} y={y + 7} textAnchor="middle" fontSize="18" fill="#f0d020" opacity={0.45} pointerEvents="none">★</text>
                 )}
 
                 {/* Piece glyph — hide player-1 pieces when fogged */}
@@ -328,7 +328,7 @@ export function HexBoard({ showAllArtifacts = false }) {
                     x={x} y={y + 7}
                     textAnchor="middle"
                     fontSize={20}
-                    fill={piece.player === 1 ? '#c8c8ff' : '#ff8080'}
+                    fill={piece.player === 1 ? '#3868c8' : '#c83030'}
                     opacity={(piece.frozenTurns ?? 0) > 0 ? 0.55 : 1}
                     pointerEvents="none"
                     fontFamily="serif"
@@ -339,7 +339,7 @@ export function HexBoard({ showAllArtifacts = false }) {
 
                 {/* Legal move dot (empty or bridge-passable hex) */}
                 {isLegalEmpty && !inFog && (
-                  <circle cx={x} cy={y} r={5} fill="#40b040" opacity={0.5} pointerEvents="none" />
+                  <circle cx={x} cy={y} r={5} fill="#38e040" opacity={0.75} pointerEvents="none" />
                 )}
               </g>
             );
@@ -360,7 +360,7 @@ export function HexBoard({ showAllArtifacts = false }) {
                 x={tx} y={ty + 5}
                 textAnchor="middle"
                 fontSize={12}
-                fill="#a0d0ff"
+                fill="#50c8f0"
                 pointerEvents="none"
                 fontFamily="monospace"
                 transform={`rotate(${angle}, ${tx}, ${ty})`}

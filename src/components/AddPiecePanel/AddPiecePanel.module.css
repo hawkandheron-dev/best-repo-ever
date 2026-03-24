@@ -1,6 +1,6 @@
 .panel {
-  background: #12122a;
-  border: 1px solid #2a2a50;
+  background: #1a2448;
+  border: 1px solid #4878c0;
   border-radius: 10px;
   padding: 0.75rem;
 }
@@ -8,7 +8,7 @@
 .prompt {
   margin: 0 0 0.5rem;
   font-size: 0.8rem;
-  color: #aaa;
+  color: #c8e0f8;
   text-align: center;
 }
 
@@ -24,10 +24,10 @@
   flex-direction: column;
   align-items: center;
   padding: 0.4rem 0.6rem;
-  background: #1a1a3a;
-  border: 1px solid #333;
+  background: #283060;
+  border: 1px solid #4878c0;
   border-radius: 8px;
-  color: #e0e0f0;
+  color: #e8f0f8;
   cursor: pointer;
   min-width: 52px;
   gap: 2px;
@@ -35,8 +35,8 @@
 }
 
 .pieceBtn:active {
-  background: #252550;
-  border-color: #5555aa;
+  background: #384888;
+  border-color: #78a8e8;
 }
 
 .glyph {
@@ -47,10 +47,10 @@
 
 .label {
   font-size: 0.65rem;
-  color: #ccc;
+  color: #c8e0f8;
 }
 
 .note {
   font-size: 0.58rem;
-  color: #888;
+  color: #90b8d8;
 }
