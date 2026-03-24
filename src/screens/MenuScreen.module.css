@@ -98,3 +98,17 @@
 .btnTest .icon {
   font-size: 1.8rem;
 }
+
+.btnSprite {
+  border-color: #5e4a2a;
+  background: #301a00;
+}
+
+.btnSprite:active {
+  background: #3e2200;
+  border-color: #8e6a3a;
+}
+
+.btnSprite .icon {
+  color: #fab23e;
+}
