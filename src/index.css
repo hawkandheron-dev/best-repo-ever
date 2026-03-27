@@ -22,10 +22,6 @@ body {
   background: #1a3408;
   font-family: var(--pixel-font);
   -webkit-text-size-adjust: 100%;
-  /* Disable antialiasing so pixel font stays crisp */
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: unset;
-  image-rendering: pixelated;
   /* Prevent rubber-band scroll revealing white background on iOS */
   overscroll-behavior: none;
 }

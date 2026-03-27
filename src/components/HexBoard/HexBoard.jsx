@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useLayoutEffect, useEffect } from 'react';
 import { useHexGame } from '../../experiment/hexGameContext';
-import { SELECT_PIECE, SELECT_DESTINATION, EXCAVATE_HEX, SCRY_FROM } from '../../experiment/hexGameActions';
+import { SELECT_PIECE, SELECT_DESTINATION, EXCAVATE_HEX, SCRY_FROM, CANCEL_ACTION } from '../../experiment/hexGameActions';
 import { hexToPixel, parseKey, hexKey, buildHexGrid, gridBounds, isValid } from '../../experiment/hexMath';
 import { getP2VisibleHexes, terrainOf } from '../../experiment/HexGameEngine';
 import styles from './HexBoard.module.css';
@@ -8,9 +8,6 @@ import styles from './HexBoard.module.css';
 const HEX_SIZE = 28;
 const ALL_HEX_KEYS = [...buildHexGrid()];
 const ZOOM_STEP = 0.2;
-
-// Render canvas at 1/3 resolution then scale up with image-rendering: pixelated
-const PIXEL_SCALE = 3;
 
 const PIECE_GLYPHS = {
   1: { K: '\u2654', Q: '\u2655', P: '\u2659', R: '\u2656' },
@@ -115,6 +112,7 @@ export function HexBoard({ showAllArtifacts = false }) {
   const canvasRef = useRef(null);
   const [panOffset, setPanOffset] = useState(null);
   const [scale, setScale] = useState(1.0);
+  const [hoveredHex, setHoveredHex] = useState(null);
 
   // Dynamic scale bounds computed once per new game from actual container size
   const minScaleRef = useRef(0.25);
@@ -176,9 +174,10 @@ export function HexBoard({ showAllArtifacts = false }) {
     const el = containerRef.current;
     if (!canvas || !el || !panOffset) return;
 
+    const dpr = window.devicePixelRatio || 1;
     const { width: dw, height: dh } = el.getBoundingClientRect();
-    const cw = Math.ceil(dw / PIXEL_SCALE);
-    const ch = Math.ceil(dh / PIXEL_SCALE);
+    const cw = Math.round(dw * dpr);
+    const ch = Math.round(dh * dpr);
     if (canvas.width !== cw || canvas.height !== ch) {
       canvas.width = cw;
       canvas.height = ch;
@@ -188,9 +187,9 @@ export function HexBoard({ showAllArtifacts = false }) {
     ctx.clearRect(0, 0, cw, ch);
 
     ctx.save();
-    // Scale drawing into the reduced-resolution canvas
-    ctx.translate(panOffset.x / PIXEL_SCALE, panOffset.y / PIXEL_SCALE);
-    ctx.scale(scale / PIXEL_SCALE, scale / PIXEL_SCALE);
+    ctx.scale(dpr, dpr);
+    ctx.translate(panOffset.x, panOffset.y);
+    ctx.scale(scale, scale);
 
     const fogActive = turn === 2 && !winner && !fogLifted;
     const visibleHexes = fogActive ? getP2VisibleHexes(board) : null;
@@ -201,6 +200,9 @@ export function HexBoard({ showAllArtifacts = false }) {
       if (key === selectedPiece) return '#b89010';
       if (legalSet.has(key)) return '#186818';
       if (excavated.has(key) && t === 'normal') return artifacts.has(key) ? '#886808' : '#386010';
+      if (key === hoveredHex && !inFog) {
+        return t === 'mountain' ? '#9c8050' : '#5cac20';
+      }
       return TERRAIN_FILL[t] ?? TERRAIN_FILL.normal;
     }
     function hexStroke(key, t) {
@@ -263,25 +265,27 @@ export function HexBoard({ showAllArtifacts = false }) {
 
       // Piece glyph (hide P1 pieces in fog)
       if (piece && !(inFog && piece.player === 1)) {
-        ctx.font = '20px serif';
+        ctx.font = '30px serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.globalAlpha = (piece.frozenTurns ?? 0) > 0 ? 0.55 : 1;
         const glyph = PIECE_GLYPHS[piece.player][piece.piece];
         // Black outline for readability
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth = 1.2;
         ctx.strokeText(glyph, x, y);
         ctx.fillStyle = piece.player === 1 ? '#3868c8' : '#c83030';
         ctx.fillText(glyph, x, y);
         ctx.globalAlpha = 1;
       }
 
-      // Legal move indicator (square for pixel aesthetic)
+      // Legal move indicator (circle)
       if (legalSet.has(key) && !piece && !inFog) {
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
         ctx.fillStyle = '#38e040';
         ctx.globalAlpha = 0.75;
-        ctx.fillRect(x - 5, y - 5, 10, 10);
+        ctx.fill();
         ctx.globalAlpha = 1;
       }
     }
@@ -419,6 +423,38 @@ export function HexBoard({ showAllArtifacts = false }) {
     return () => el.removeEventListener('wheel', handler);
   }, []);
 
+  // ── Mouse hover (desktop) ────────────────────────────────────────────────
+  const onMouseMove = useCallback((e) => {
+    // Only track hover when not dragging
+    if (dragState.current?.moved) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const pan = panOffsetRef.current ?? { x: 0, y: 0 };
+    const s = scaleRef.current;
+    const mapX = (screenX - pan.x) / s;
+    const mapY = (screenY - pan.y) / s;
+    const [q, r] = pixelToHex(mapX, mapY, HEX_SIZE);
+    if (isValid(q, r)) {
+      setHoveredHex(hexKey(q, r));
+    } else {
+      setHoveredHex(null);
+    }
+  }, []);
+
+  const onMouseLeave = useCallback(() => setHoveredHex(null), []);
+
+  // ── Keyboard shortcuts (desktop) ──────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') dispatch({ type: CANCEL_ACTION });
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [dispatch]);
+
   // ── Zoom button helper ────────────────────────────────────────────────────
   const zoomBy = useCallback((delta) => {
     const el = containerRef.current;
@@ -445,6 +481,8 @@ export function HexBoard({ showAllArtifacts = false }) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
       style={{ touchAction: 'none' }}
     >
       <canvas ref={canvasRef} className={styles.canvas} />
