@@ -1,14 +1,15 @@
 .panel {
-  background: #12122a;
-  border: 1px solid #2a2a50;
-  border-radius: 10px;
+  background: #1a2448;
+  border: 2px solid #4878c0;
+  border-radius: 0;
   padding: 0.75rem;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.4);
 }
 
 .prompt {
   margin: 0 0 0.5rem;
-  font-size: 0.8rem;
-  color: #aaa;
+  font-size: 0.5rem;
+  color: #c8e0f8;
   text-align: center;
 }
 
@@ -24,19 +25,22 @@
   flex-direction: column;
   align-items: center;
   padding: 0.4rem 0.6rem;
-  background: #1a1a3a;
-  border: 1px solid #333;
-  border-radius: 8px;
-  color: #e0e0f0;
+  background: #283060;
+  border: 2px solid #4878c0;
+  border-radius: 0;
+  color: #e8f0f8;
   cursor: pointer;
   min-width: 52px;
   gap: 2px;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .pieceBtn:active {
-  background: #252550;
-  border-color: #5555aa;
+  background: #384888;
+  border-color: #78a8e8;
+  box-shadow: none;
+  transform: translate(2px, 2px);
 }
 
 .glyph {
@@ -46,11 +50,11 @@
 }
 
 .label {
-  font-size: 0.65rem;
-  color: #ccc;
+  font-size: 0.45rem;
+  color: #c8e0f8;
 }
 
 .note {
-  font-size: 0.58rem;
-  color: #888;
+  font-size: 0.4rem;
+  color: #90b8d8;
 }

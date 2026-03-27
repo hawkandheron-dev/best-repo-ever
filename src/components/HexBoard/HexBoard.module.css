@@ -4,19 +4,19 @@
   min-height: 0;
   position: relative;
   overflow: hidden;
-  background: #0f0f1a;
-  border-radius: 12px;
+  background: #1a3408;
+  border-radius: 0;
+  cursor: pointer;
 }
 
-.svg {
+.canvas {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-/* Center the hex board group in SVG coordinate space */
-.boardGroup {
-  transform: translate(50%, 50%);
+  /* Nearest-neighbor upscaling for pixel art effect */
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 /* ── Zoom controls ────────────────────────────────────────────────────── */
@@ -31,21 +31,25 @@
 }
 
 .zoomControls button {
-  width: 2.2rem;
-  height: 2.2rem;
-  background: rgba(20, 20, 48, 0.88);
-  border: 1px solid #3a3a60;
-  border-radius: 8px;
-  color: #c0c0e0;
-  font-size: 1.4rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  background: #1a2448;
+  border: 3px solid #c0a028;
+  border-radius: 0;
+  color: #f0e8b0;
+  font-family: var(--pixel-font);
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
 }
 
 .zoomControls button:active {
-  background: rgba(60, 60, 100, 0.9);
+  background: #283878;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  transform: translate(2px, 2px);
 }

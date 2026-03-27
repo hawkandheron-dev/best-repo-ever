@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 100dvh;
   padding: var(--safe-top, 0px) var(--safe-left, 0px) var(--safe-bottom, 0px) var(--safe-right, 0px);
-  background: #0f0f1a;
+  background: #1a3408;
   overflow: hidden;
   position: relative;
 }
@@ -14,19 +14,26 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #1e1e34;
+  background: #283060;
+  border-bottom: 3px solid #c0a028;
   flex-shrink: 0;
 }
 
 .backBtn {
-  background: none;
-  border: 1px solid #2a2a44;
-  border-radius: 6px;
-  color: #888;
-  font-size: 0.8rem;
-  padding: 0.3rem 0.6rem;
+  background: #1a2448;
+  border: 2px solid #c0a028;
+  border-radius: 0;
+  color: #f0e8b0;
+  font-size: 0.55rem;
+  padding: 0.35rem 0.5rem;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.backBtn:active {
+  box-shadow: none;
+  transform: translate(2px, 2px);
 }
 
 .headerInfo {
@@ -34,23 +41,25 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 .turnLabel {
-  font-size: 0.85rem;
+  font-size: 0.6rem;
   font-weight: 600;
-  color: #c0c0e0;
+  color: #f0e890;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
 }
 
 .artifactCount {
-  font-size: 0.75rem;
-  color: #f0a020;
+  font-size: 0.5rem;
+  color: #f0c030;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
 }
 
 .fogCountdown {
-  font-size: 0.65rem;
-  color: #6060a0;
+  font-size: 0.45rem;
+  color: #90b8e8;
   letter-spacing: 0.02em;
 }
 
@@ -60,15 +69,15 @@
   align-items: center;
   gap: 1rem;
   padding: 0.3rem 0.75rem;
-  background: #0a0a18;
-  border-bottom: 1px solid #2a1a4a;
+  background: #1a2448;
+  border-bottom: 2px solid #c0a028;
   flex-shrink: 0;
 }
 
 .testLabel {
-  font-size: 0.7rem;
+  font-size: 0.5rem;
   font-weight: 600;
-  color: #7a4ab0;
+  color: #c0a028;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -77,39 +86,46 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.75rem;
-  color: #a080d0;
+  font-size: 0.5rem;
+  color: #c8e0f8;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 .testToggle input[type="checkbox"] {
-  accent-color: #7a4ab0;
+  accent-color: #f0c030;
   cursor: pointer;
 }
 
 .newGameBtn {
-  background: none;
-  border: 1px solid #2a2a44;
-  border-radius: 6px;
-  color: #888;
-  font-size: 0.8rem;
-  padding: 0.3rem 0.6rem;
+  background: #1a2448;
+  border: 2px solid #c0a028;
+  border-radius: 0;
+  color: #f0e8b0;
+  font-size: 0.55rem;
+  padding: 0.35rem 0.5rem;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.newGameBtn:active {
+  box-shadow: none;
+  transform: translate(2px, 2px);
 }
 
 /* ── How to Play ──────────────────────────────────────────────────────── */
 .howToPlay {
   flex-shrink: 0;
-  border-top: 1px solid #1e1e34;
-  color: #c0c0d8;
+  background: #283060;
+  border-top: 3px solid #c0a028;
+  color: #c8e0f8;
 }
 
 .howToSummary {
   padding: 0.4rem 0.75rem;
-  font-size: 0.8rem;
-  color: #888;
+  font-size: 0.5rem;
+  color: #c0a028;
   cursor: pointer;
   list-style: none;
   -webkit-tap-highlight-color: transparent;
@@ -129,24 +145,24 @@
 
 .howToSection strong {
   display: block;
-  font-size: 0.8rem;
-  color: #d0d0f0;
+  font-size: 0.5rem;
+  color: #f0e890;
   margin-bottom: 0.2rem;
 }
 
 .howToSection ul {
   margin: 0;
   padding-left: 1.2rem;
-  font-size: 0.75rem;
-  color: #999;
-  line-height: 1.5;
+  font-size: 0.45rem;
+  color: #a8c8e8;
+  line-height: 2;
 }
 
 /* ── Overlays ─────────────────────────────────────────────────────────── */
 .overlay {
   position: absolute;
   inset: 0;
-  background: rgba(10, 10, 20, 0.92);
+  background: rgba(8, 16, 40, 0.93);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -157,52 +173,57 @@
 }
 
 .countdown {
-  font-size: 6rem;
+  font-size: 4rem;
   font-weight: 700;
-  color: #c0a0e0;
+  color: #f0e030;
   line-height: 1;
+  text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
 }
 
 .countdownLabel {
-  font-size: 1rem;
-  color: #888;
+  font-size: 0.6rem;
+  color: #a8c8e8;
   margin: 0;
 }
 
 .handoffTitle {
-  font-size: 1rem;
-  color: #aaa;
+  font-size: 0.65rem;
+  color: #a8c8e8;
   text-align: center;
 }
 
 .handoffPlayer {
-  font-size: 3rem;
+  font-size: 1.6rem;
   font-weight: 700;
-  color: #e0d0ff;
+  color: #f0e890;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6);
 }
 
 .handoffHint {
-  font-size: 0.85rem;
-  color: #555;
+  font-size: 0.5rem;
+  color: #6888a8;
   margin: 0;
 }
 
 .winnerIcon {
-  font-size: 4rem;
-  color: #f0a020;
+  font-size: 3rem;
+  color: #f0d020;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
 }
 
 .winnerTitle {
-  font-size: 2rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  color: #e8e8f0;
+  color: #f0e890;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
 }
 
 .winReason {
-  font-size: 1rem;
-  color: #aaa;
+  font-size: 0.55rem;
+  color: #a8c8e8;
   margin: 0;
   text-align: center;
+  line-height: 1.8;
 }
 
 .overlayBtns {
@@ -216,24 +237,28 @@
 
 .overlayBtn {
   padding: 0.9rem;
-  background: #3a2a5e;
-  border: 1px solid #5a3a8e;
-  border-radius: 12px;
-  color: #e0d0ff;
-  font-size: 1rem;
+  background: #287820;
+  border: 3px solid #68c830;
+  border-radius: 0;
+  color: #c8f870;
+  font-size: 0.65rem;
   font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
 }
 
 .overlayBtn:active {
-  background: #4a3a70;
+  background: #387828;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+  transform: translate(3px, 3px);
 }
 
 .overlayBtnSecondary {
-  background: #1a1a2e;
-  border-color: #2a2a50;
-  color: #888;
+  background: #1a2448;
+  border-color: #4878c0;
+  color: #90b8e8;
 }
 
 /* ── Artifact found toast ─────────────────────────────────────────────────── */
@@ -242,16 +267,18 @@
   top: 30%;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(30, 20, 50, 0.92);
-  border: 1px solid #f0a020;
-  border-radius: 12px;
-  color: #f0a020;
-  font-size: 1.4rem;
+  background: #1a2448;
+  border: 3px solid #f0c030;
+  border-radius: 0;
+  color: #f0e030;
+  font-size: 0.8rem;
   font-weight: 700;
   padding: 0.75rem 1.5rem;
   z-index: 9;
   pointer-events: none;
   white-space: nowrap;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
   animation: fadeInOut 2s ease forwards;
 }
 

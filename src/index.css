@@ -4,6 +4,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+  --pixel-font: 'Press Start 2P', monospace;
 }
 
 *,
@@ -18,10 +19,13 @@ body {
   padding: 0;
   width: 100%;
   min-height: 100dvh;
-  background: #0f0f1a;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a3408;
+  font-family: var(--pixel-font);
   -webkit-text-size-adjust: 100%;
-  -webkit-font-smoothing: antialiased;
+  /* Disable antialiasing so pixel font stays crisp */
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  image-rendering: pixelated;
   /* Prevent rubber-band scroll revealing white background on iOS */
   overscroll-behavior: none;
 }
