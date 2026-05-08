@@ -1,0 +1,22 @@
+.container {
+  flex: 1;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  background: #111;
+  padding: 24px 0;
+  /* Scrolling is driven by the RAF loop — no smooth CSS scroll. */
+  scroll-behavior: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.bottomPad {
+  height: 50vh;
+}

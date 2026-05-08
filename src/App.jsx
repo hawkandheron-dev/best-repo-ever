@@ -6,6 +6,8 @@ import { ResultScreen } from './screens/ResultScreen';
 import { MenuScreen } from './screens/MenuScreen';
 import { ExperimentScreen } from './screens/ExperimentScreen';
 import { SpriteStudioScreen } from './screens/SpriteStudioScreen';
+import { ScreenplayScreen } from './screens/ScreenplayScreen';
+import { ScreenplayProvider } from './screenplay/screenwplayContext';
 import { HexGameProvider } from './experiment/hexGameContext';
 
 function ClassicContent({ onBack }) {
@@ -45,6 +47,14 @@ export default function App() {
 
   if (mode === 'sprite-studio') {
     return <SpriteStudioScreen onBack={() => setMode('menu')} />;
+  }
+
+  if (mode === 'screenplay') {
+    return (
+      <ScreenplayProvider>
+        <ScreenplayScreen onBack={() => setMode('menu')} />
+      </ScreenplayProvider>
+    );
   }
 
   return null;

@@ -1,0 +1,11 @@
+export const LOAD_PDF       = 'LOAD_PDF';
+export const LOAD_ERROR     = 'LOAD_ERROR';
+export const START_SYNC     = 'START_SYNC';
+export const PAUSE_SYNC     = 'PAUSE_SYNC';
+export const RESUME_SYNC    = 'RESUME_SYNC';
+export const RESET_SYNC     = 'RESET_SYNC';
+export const SET_POSITION   = 'SET_POSITION';
+export const ADD_MARKER     = 'ADD_MARKER';
+export const REMOVE_MARKER  = 'REMOVE_MARKER';
+export const ADJUST_OFFSET  = 'ADJUST_OFFSET';
+export const RESET_PDF      = 'RESET_PDF';

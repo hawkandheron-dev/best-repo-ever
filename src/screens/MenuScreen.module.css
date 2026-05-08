@@ -112,3 +112,17 @@
 .btnSprite .icon {
   color: #fab23e;
 }
+
+.btnScreenplay {
+  border-color: #3a2a1a;
+  background: #1a0d00;
+}
+
+.btnScreenplay:active {
+  background: #251200;
+  border-color: #6a4a1a;
+}
+
+.btnScreenplay .icon {
+  color: #f5c518;
+}

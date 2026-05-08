@@ -1,0 +1,42 @@
+.page {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 24px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  background: #fff;
+  line-height: 0;
+}
+
+.canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.textLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* Text is invisible — canvas provides the visual. Highlights show through. */
+  color: transparent;
+  pointer-events: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* PDF.js places spans with absolute positioning via inline transform styles. */
+.textLayer :global(span) {
+  position: absolute;
+  white-space: pre;
+  transform-origin: 0% 0%;
+  cursor: text;
+  transition: background 0.1s;
+}
+
+.textLayer :global(span.highlighted) {
+  background: rgba(245, 197, 24, 0.38);
+  border-radius: 2px;
+}

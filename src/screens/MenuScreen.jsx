@@ -26,6 +26,11 @@ export function MenuScreen({ onSelect }) {
           <span className={styles.label}>Sprite Studio</span>
           <span className={styles.desc}>Pixel art editor · Hex rotations</span>
         </button>
+        <button className={`${styles.btn} ${styles.btnScreenplay}`} onClick={() => onSelect('screenplay')}>
+          <span className={styles.icon}>🎬</span>
+          <span className={styles.label}>Screenplay Sync</span>
+          <span className={styles.desc}>Follow along with a movie</span>
+        </button>
       </div>
     </div>
   );

@@ -1,0 +1,101 @@
+.bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 20px;
+  background: rgba(10, 10, 10, 0.92);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid #1e1e1e;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.position {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #888;
+}
+
+.page { color: #ccc; font-weight: 500; }
+.sep  { color: #444; }
+.time { color: #f5c518; font-variant-numeric: tabular-nums; }
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: #ccc;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn:hover { background: #252525; border-color: #444; }
+.btn:active { background: #0d0d0d; }
+
+.primary {
+  background: #f5c518;
+  color: #000;
+  border-color: #f5c518;
+  font-weight: 600;
+}
+.primary:hover { background: #ffd740; border-color: #ffd740; }
+.primary:active { background: #e0b000; }
+
+.anchor { border-color: #3a3a2a; }
+.anchor:hover { border-color: #f5c518; color: #f5c518; }
+
+.reset { color: #888; }
+.reset:hover { color: #f55; border-color: #553333; }
+
+.ghost {
+  background: transparent;
+  border-color: #222;
+  color: #555;
+}
+.ghost:hover { color: #888; border-color: #333; }
+
+.anchorPrompt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #ccc;
+  border-top: 1px solid #222;
+}
+
+.pageAdj {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #222;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pageAdj:hover { background: #2e2e2e; }
+
+.pageNum {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f5c518;
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
