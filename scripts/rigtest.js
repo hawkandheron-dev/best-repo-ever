@@ -21,6 +21,11 @@ import {
   restWorldAngles,
   drawablePartsAtFrame,
 } from '../src/fighter/rig/pose.js';
+import {
+  STANDARD_CLIPS,
+  CLIP_GROUPS,
+  installStandardClips,
+} from '../src/fighter/rig/standardClips.js';
 
 let passed = 0;
 const failures = [];
@@ -327,6 +332,224 @@ check(
     const ev = evaluateClip(tied, 'none', 0);
     const order = drawablePartsAtFrame(tied, ev).map((d) => d.slot.id);
     return order[0] === 'p.alpha' && order[1] === 'p.zebra';
+  })(),
+);
+
+/* ── The standard moveset ─────────────────────────────────────────────────── */
+
+// A rig carrying every standard clip, cut with the conventional part set.
+const fighter = createEmptyRig('standard');
+fighter.parts = [
+  { id: 'p.armB.up', bone: 'armB.up', src: 'a.png', pivot: [8, 22], z: Z.ARM_B },
+  { id: 'p.legB', bone: 'legB.thigh', src: 'b.png', pivot: [8, 22], z: Z.LEG_B },
+  { id: 'p.robe', bone: 'robeA', src: 'c.png', pivot: [20, 8], z: Z.ROBE_B },
+  { id: 'p.torso', bone: 'torso', src: 'd.png', pivot: [30, 6], z: Z.TORSO },
+  { id: 'p.legF', bone: 'legF.thigh', src: 'e.png', pivot: [8, 22], z: Z.LEG_F },
+  { id: 'p.head', bone: 'head', src: 'f.png', pivot: [46, 8], z: Z.HEAD },
+  { id: 'p.armF.up', bone: 'armF.up', src: 'g.png', pivot: [8, 22], z: Z.ARM_F },
+  { id: 'p.handF', bone: 'handF', src: 'h.png', pivot: [10, 22], z: Z.HAND_F },
+  { id: 'p.fistF', bone: 'handF', src: 'i.png', pivot: [10, 22], z: Z.HAND_F },
+];
+const rigged = installStandardClips(fighter);
+
+const clipIds = Object.keys(STANDARD_CLIPS);
+
+check('the standard moveset covers 30+ clips', clipIds.length >= 30, `got ${clipIds.length}`);
+
+check(
+  'a rig with the full standard moveset validates clean',
+  validateRig(rigged).length === 0,
+  validateRig(rigged).slice(0, 6).join('; '),
+);
+
+check(
+  'every group in CLIP_GROUPS names a real clip',
+  CLIP_GROUPS.every((g) => g.clips.every((id) => id in STANDARD_CLIPS)),
+  CLIP_GROUPS.flatMap((g) => g.clips).filter((id) => !(id in STANDARD_CLIPS)).join(', '),
+);
+
+check(
+  'every standard clip is listed in a group',
+  clipIds.every((id) => CLIP_GROUPS.some((g) => g.clips.includes(id))),
+  clipIds.filter((id) => !CLIP_GROUPS.some((g) => g.clips.includes(id))).join(', '),
+);
+
+// The moveset must cover the genre's required shapes, or it isn't "standard".
+for (const required of [
+  'idle', 'walk.f', 'walk.b', 'crouch', 'jump.squat', 'jump.rise', 'jump.fall', 'land',
+  'dash.f', 'dash.b', 'block.stand', 'block.crouch', 'kd.fall', 'getup', 'ko', 'win',
+]) {
+  check(`the moveset includes "${required}"`, required in STANDARD_CLIPS);
+}
+
+check(
+  'there are light, medium and heavy versions of both punch and kick',
+  ['5P', '5K'].every((b) => ['l', 'm', 'h'].every((s) => `attack.${b}.${s}` in STANDARD_CLIPS)),
+);
+
+// Every clip must survive evaluation at every one of its frames. This is what
+// catches an authoring slip in the keyframe tables above.
+for (const [id, source] of Object.entries(STANDARD_CLIPS)) {
+  const bad = [];
+  for (let f = 0; f < source.frames; f++) {
+    const ev = evaluateClip(rigged, id, f);
+    for (const [boneId, ch] of Object.entries(ev.bones)) {
+      for (const [name, value] of Object.entries(ch)) {
+        if (!Number.isFinite(value)) bad.push(`${boneId}.${name}@${f}=${value}`);
+      }
+    }
+  }
+  check(`clip "${id}" evaluates to finite numbers on every frame`, bad.length === 0, bad.slice(0, 3).join(', '));
+}
+
+check(
+  'every clip poses without throwing',
+  (() => {
+    for (const id of clipIds) {
+      const ev = evaluateClip(rigged, id, Math.floor(STANDARD_CLIPS[id].frames / 2));
+      const w = composePose(rigged, ev.bones);
+      if (w.size !== rigged.bones.length) return false;
+    }
+    return true;
+  })(),
+);
+
+// Attacks must actually reach: the striking limb has to travel meaningfully
+// further forward than it sits at rest, or the animation doesn't read as an attack.
+const restWorld = composePose(rigged, evaluateClip(rigged, 'idle', 0).bones);
+const crouchWorld = composePose(rigged, evaluateClip(rigged, 'crouch', 0).bones);
+
+// Crouching moves start and end in the crouch, so they must be measured against
+// the crouch pose — comparing them to the standing stance measures the crouch, not
+// the attack.
+for (const [id, bone, from] of [
+  ['attack.5P.h', 'handF', restWorld],
+  ['attack.5P.m', 'handF', restWorld],
+  ['attack.5K.h', 'footF', restWorld],
+  ['attack.2K.h', 'footF', crouchWorld],
+  ['attack.2P.m', 'handF', crouchWorld],
+  ['sp.qcfP', 'handF', restWorld],
+]) {
+  let furthest = -Infinity;
+  for (let f = 0; f < STANDARD_CLIPS[id].frames; f++) {
+    const w = composePose(rigged, evaluateClip(rigged, id, f).bones);
+    furthest = Math.max(furthest, apply(w.get(bone), 0, 0)[0]);
+  }
+  const restX = apply(from.get(bone), 0, 0)[0];
+  check(`"${id}" extends ${bone} well past its resting reach`, furthest > restX + 45,
+    `rest ${restX.toFixed(1)} → furthest ${furthest.toFixed(1)}`);
+}
+
+// Kicks must reach the height they advertise, or "low/mid/high" is a lie.
+for (const [id, minY, maxY] of [
+  ['attack.5K.l', 0, 70],
+  ['attack.5K.m', 70, 150],
+  ['attack.5K.h', 150, 260],
+]) {
+  let peak = -Infinity;
+  for (let f = 0; f < STANDARD_CLIPS[id].frames; f++) {
+    const w = composePose(rigged, evaluateClip(rigged, id, f).bones);
+    peak = Math.max(peak, apply(w.get('footF'), 0, 0)[1]);
+  }
+  check(`"${id}" reaches its advertised height`, peak >= minY && peak <= maxY,
+    `foot peaked at y=${peak.toFixed(1)}, wanted ${minY}..${maxY}`);
+}
+
+// The uppercut has to leave the ground, and the sweep has to stay low.
+check(
+  '"sp.dpP" lifts the fighter off the ground',
+  (() => {
+    let highest = -Infinity;
+    for (let f = 0; f < STANDARD_CLIPS['sp.dpP'].frames; f++) {
+      const w = composePose(rigged, evaluateClip(rigged, 'sp.dpP', f).bones);
+      highest = Math.max(highest, apply(w.get('pelvis'), 0, 0)[1]);
+    }
+    return highest > 180;
+  })(),
+);
+
+check(
+  '"attack.2K.h" sweeps low, staying under standing hip height',
+  (() => {
+    let highest = -Infinity;
+    for (let f = 0; f < STANDARD_CLIPS['attack.2K.h'].frames; f++) {
+      const w = composePose(rigged, evaluateClip(rigged, 'attack.2K.h', f).bones);
+      highest = Math.max(highest, apply(w.get('pelvis'), 0, 0)[1]);
+    }
+    return highest < 108;
+  })(),
+);
+
+check(
+  'the knockdown ends with the body near the floor',
+  (() => {
+    const frames = STANDARD_CLIPS['kd.fall'].frames;
+    const w = composePose(rigged, evaluateClip(rigged, 'kd.fall', frames - 1).bones);
+    return apply(w.get('pelvis'), 0, 0)[1] < 40;
+  })(),
+);
+
+check(
+  'getup returns to the idle stance',
+  (() => {
+    const frames = STANDARD_CLIPS.getup.frames;
+    const end = composePose(rigged, evaluateClip(rigged, 'getup', frames - 1).bones);
+    const [ex, ey] = apply(end.get('pelvis'), 0, 0);
+    const [ix, iy] = apply(restWorld.get('pelvis'), 0, 0);
+    return Math.abs(ex - ix) < 6 && Math.abs(ey - iy) < 6;
+  })(),
+);
+
+// Non-looping clips must return to the stance they started from, or they snap
+// visibly when the state machine drops back to idle (or to crouch).
+for (const [id, from, label] of [
+  ['attack.5P.h', restWorld, 'idle'],
+  ['attack.5K.h', restWorld, 'idle'],
+  ['hurt.h.hi', restWorld, 'idle'],
+  ['dash.f', restWorld, 'idle'],
+  ['dash.b', restWorld, 'idle'],
+  ['attack.2P.l', crouchWorld, 'crouch'],
+  ['attack.2K.h', crouchWorld, 'crouch'],
+]) {
+  check(
+    `"${id}" ends back in the ${label} pose`,
+    (() => {
+      const end = composePose(rigged, evaluateClip(rigged, id, STANDARD_CLIPS[id].frames - 1).bones);
+      return ['handF', 'footF', 'head'].every((bone) => {
+        const [ax, ay] = apply(end.get(bone), 0, 0);
+        const [bx, by] = apply(from.get(bone), 0, 0);
+        return Math.hypot(ax - bx, ay - by) < 20;
+      });
+    })(),
+  );
+}
+
+check(
+  'looping clips are marked loop, one-shots are not',
+  (() => {
+    const shouldLoop = ['idle', 'walk.f', 'walk.b', 'crouch', 'jump.apex', 'kd.lie', 'win'];
+    const shouldNot = ['attack.5P.h', 'kd.fall', 'getup', 'ko', 'land', 'jump.squat'];
+    return shouldLoop.every((id) => STANDARD_CLIPS[id].loop === true)
+      && shouldNot.every((id) => !STANDARD_CLIPS[id].loop);
+  })(),
+);
+
+check(
+  'installStandardClips drops swaps for parts the rig lacks',
+  (() => {
+    const noFist = createEmptyRig('nofist');
+    noFist.parts = [{ id: 'p.torso', bone: 'torso', src: 'd.png', pivot: [0, 0], z: Z.TORSO }];
+    const installed = installStandardClips(noFist);
+    return validateRig(installed).length === 0 && !installed.clips['attack.5P.h'].parts;
+  })(),
+);
+
+check(
+  'installStandardClips keeps a character\'s own overrides',
+  (() => {
+    const custom = createEmptyRig('custom');
+    custom.clips = { idle: { frames: 8, loop: true, interp: 'linear', tracks: {} } };
+    return installStandardClips(custom).clips.idle.frames === 8;
   })(),
 );
 
