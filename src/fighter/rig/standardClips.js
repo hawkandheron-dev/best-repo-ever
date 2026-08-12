@@ -583,9 +583,11 @@ const spDpP = clip(40, false, {
   torso: { rot: [[0, 0], [3, 8], [8, -14], [18, -20], [30, -4], [39, 0]] },
   chest: { rot: [[0, 0], [3, 14], [8, -18], [18, -12], [39, 0]] },
   head: { rot: [[0, 0], [3, 6], [8, -12], [39, 0]] },
-  // The uppercut arm swings from low behind to straight up.
-  'armF.up': { rot: [[0, -75], [3, -104], [8, 42], [16, 74], [26, 40], [39, -75]] },
-  'armF.fore': { rot: [[0, -20], [3, -58], [8, 8], [16, 2], [39, -20]] },
+  // The uppercut arm swings from low behind to straight up. These are large numbers
+  // because `rot` is LOCAL to the parent: the torso and chest are leaning back ~32°
+  // here, so the shoulder has to over-rotate by that much to put the fist overhead.
+  'armF.up': { rot: [[0, -75], [3, -104], [8, 108], [16, 116], [26, 60], [39, -75]] },
+  'armF.fore': { rot: [[0, -20], [3, -58], [8, 6], [16, 2], [39, -20]] },
   'armB.up': { rot: [[0, -95], [3, -76], [8, -118], [20, -126], [39, -95]] },
   'armB.fore': { rot: [[0, -15], [3, -38], [8, -10], [39, -15]] },
   'legF.thigh': { rot: [[0, -88], [3, -122], [8, -66], [16, -52], [26, -84], [39, -88]] },

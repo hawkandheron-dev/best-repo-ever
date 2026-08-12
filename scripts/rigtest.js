@@ -468,6 +468,29 @@ check(
   })(),
 );
 
+// A dragon punch that doesn't put the fist overhead is just a lunge. This is the
+// check that catches local-vs-world rotation mistakes: `rot` is relative to the
+// parent, so a leaning torso silently eats the shoulder's rotation.
+check(
+  '"sp.dpP" raises the fist above the head',
+  (() => {
+    let best = -Infinity;
+    for (let f = 0; f < STANDARD_CLIPS['sp.dpP'].frames; f++) {
+      const w = composePose(rigged, evaluateClip(rigged, 'sp.dpP', f).bones);
+      best = Math.max(best, apply(w.get('handF'), 0, 0)[1] - apply(w.get('head'), 0, 0)[1]);
+    }
+    return best > 0;
+  })(),
+  `fist peaked ${(() => {
+    let best = -Infinity;
+    for (let f = 0; f < STANDARD_CLIPS['sp.dpP'].frames; f++) {
+      const w = composePose(rigged, evaluateClip(rigged, 'sp.dpP', f).bones);
+      best = Math.max(best, apply(w.get('handF'), 0, 0)[1] - apply(w.get('head'), 0, 0)[1]);
+    }
+    return best.toFixed(1);
+  })()} above the head`,
+);
+
 check(
   '"attack.2K.h" sweeps low, staying under standing hip height',
   (() => {
