@@ -7,6 +7,7 @@ import { MenuScreen } from './screens/MenuScreen';
 import { ExperimentScreen } from './screens/ExperimentScreen';
 import { SpriteStudioScreen } from './screens/SpriteStudioScreen';
 import { MoveViewerScreen } from './screens/MoveViewerScreen';
+import { RigStudioScreen } from './screens/RigStudioScreen';
 import { HexGameProvider } from './experiment/hexGameContext';
 
 function ClassicContent({ onBack }) {
@@ -50,6 +51,10 @@ export default function App() {
 
   if (mode === 'move-viewer') {
     return <MoveViewerScreen onBack={() => setMode('menu')} />;
+  }
+
+  if (mode === 'rig-studio') {
+    return <RigStudioScreen onBack={() => setMode('menu')} />;
   }
 
   return null;

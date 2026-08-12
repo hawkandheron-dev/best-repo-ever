@@ -1,0 +1,73 @@
+.canvas {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  background: #14121c;
+  border: 2px solid #3a3048;
+  /* Source art is photographic and parts rotate: index.css sets `pixelated` on
+     body and it inherits into every canvas, so it has to be overridden here. */
+  image-rendering: auto;
+  touch-action: none;
+}
+
+.previewWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.previewCanvas {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 200px;
+  background: #1c1828;
+  border: 2px solid #3a3048;
+  image-rendering: auto;
+}
+
+.select {
+  font-family: inherit;
+  font-size: 8px;
+  padding: 6px;
+  color: #e8dcc0;
+  background: #1e1a28;
+  border: 2px solid #4a3e5c;
+  max-width: 260px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.secondary {
+  font-size: 7px;
+  padding: 7px 9px;
+  color: #b8ab94;
+  background: #1e1a28;
+  border: 1px solid #4a3e5c;
+}
+
+.partActive {
+  color: #14121c;
+  background: #f0c040;
+  border-color: #f0c040;
+}
+
+.frameLabel {
+  font-size: 8px;
+  color: #f0c040;
+  margin-left: auto;
+}
+
+.hint {
+  font-size: 7px;
+  line-height: 1.7;
+  color: #7e7568;
+  margin: 0;
+}

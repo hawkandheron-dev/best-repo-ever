@@ -80,6 +80,26 @@ function evaluateStepTrack(keys, frame) {
 /* ── Clip evaluation ──────────────────────────────────────────────────────── */
 
 /**
+ * The skeleton's rest channels, with no clip applied.
+ * This is the pose the Rig Studio lays out against the source painting: parts are
+ * cut in rest orientation, so the rest pose is the one that should match the art.
+ */
+export function restChannels(rig) {
+  const bones = {};
+  for (const bone of rig.bones) {
+    bones[bone.id] = {
+      rot: bone.rest ?? 0,
+      x: bone.pos[0],
+      y: bone.pos[1],
+      sx: 1,
+      sy: 1,
+      skx: 0,
+    };
+  }
+  return { bones, parts: {}, frame: 0 };
+}
+
+/**
  * Resolve a clip at one frame into per-bone channel values and per-part state.
  *
  * Unkeyed channels fall back to the bone's rest values, so a clip only has to

@@ -18,6 +18,7 @@ import {
   evaluateTrack,
   evaluateClip,
   composePose,
+  restChannels,
   restWorldAngles,
   drawablePartsAtFrame,
 } from '../src/fighter/rig/pose.js';
@@ -26,6 +27,13 @@ import {
   CLIP_GROUPS,
   installStandardClips,
 } from '../src/fighter/rig/standardClips.js';
+import {
+  rigToSourcePx,
+  boneOriginInSourcePx,
+  buildParts,
+  findMisalignedParts,
+  initialAnchor,
+} from '../src/rigStudio/derivePivots.js';
 
 let passed = 0;
 const failures = [];
@@ -573,6 +581,90 @@ check(
     const custom = createEmptyRig('custom');
     custom.clips = { idle: { frames: 8, loop: true, interp: 'linear', tracks: {} } };
     return installStandardClips(custom).clips.idle.frames === 8;
+  })(),
+);
+
+/* ── Pivot derivation (Rig Studio) ────────────────────────────────────────── */
+
+const anchor = { footX: 200, footY: 600, pxPerUnit: 2, viewX: 0, viewY: 0, viewScale: 1 };
+
+check(
+  'rig origin maps to the anchor point in source pixels',
+  nearArr(rigToSourcePx(anchor, 0, 0), [200, 600]),
+);
+
+// The sign of the vertical term is the trap: rig +y is UP, image +y is DOWN.
+// Getting it wrong mirrors the whole figure and looks like a rigging mistake.
+check(
+  'rig +y (up) maps to smaller image y (up the page)',
+  nearArr(rigToSourcePx(anchor, 0, 100), [200, 400]),
+);
+check(
+  'rig +x (forward) maps to larger image x',
+  nearArr(rigToSourcePx(anchor, 50, 0), [300, 600]),
+);
+
+check(
+  'a bone origin resolves to source pixels through the anchor',
+  (() => {
+    const world = composePose(rigged, restChannels(rigged).bones);
+    const px = boneOriginInSourcePx(world, 'pelvis', anchor);
+    // pelvis sits 108 units up from the feet.
+    return near(px[0], 200, 1e-6) && near(px[1], 600 - 108 * 2, 1e-6);
+  })(),
+);
+
+check(
+  'a pivot is the joint position measured inside the cut piece',
+  (() => {
+    const world = composePose(rigged, restChannels(rigged).bones);
+    const [jx, jy] = boneOriginInSourcePx(world, 'torso', anchor);
+    // Pretend the torso was cut from a rectangle starting 30px left and 40px above
+    // the joint; the pivot must land at exactly (30, 40) inside that piece.
+    const offsets = { 'p.torso': [jx - 30, jy - 40] };
+    const parts = buildParts(rigged, [{ id: 'p.torso', bone: 'torso', z: 20 }], { 'p.torso': true }, offsets, anchor);
+    return parts.length === 1 && nearArr(parts[0].pivot, [30, 40], 1e-6);
+  })(),
+);
+
+check(
+  'moving a joint re-pivots the parts bound to it',
+  (() => {
+    const shifted = {
+      ...rigged,
+      bones: rigged.bones.map((b) => (b.id === 'pelvis' ? { ...b, pos: [0, 150] } : b)),
+    };
+    const targets = [{ id: 'p.torso', bone: 'torso', z: 20 }];
+    const before = buildParts(rigged, targets, { 'p.torso': true }, {}, anchor)[0].pivot;
+    const after = buildParts(shifted, targets, { 'p.torso': true }, {}, anchor)[0].pivot;
+    // Pelvis rose 42 units, so the torso joint rises 84 image px (pxPerUnit = 2).
+    return near(after[1], before[1] - 84, 1e-6);
+  })(),
+);
+
+check(
+  'parts with no cut piece are left out entirely',
+  buildParts(rigged, [{ id: 'p.torso', bone: 'torso', z: 20 }], {}, {}, anchor).length === 0,
+);
+
+check(
+  'a pivot inside its part is not flagged',
+  findMisalignedParts([{ id: 'a', pivot: [20, 30] }], { a: { width: 60, height: 60 } }).length === 0,
+);
+check(
+  'a pivot outside its part is flagged',
+  findMisalignedParts([{ id: 'a', pivot: [-40, 30] }], { a: { width: 60, height: 60 } }).length === 1,
+);
+check(
+  'a pivot just past the edge is tolerated, since parts overlap their joints',
+  findMisalignedParts([{ id: 'a', pivot: [63, 30] }], { a: { width: 60, height: 60 } }).length === 0,
+);
+
+check(
+  'the initial anchor stands the figure on the bottom of the frame',
+  (() => {
+    const a = initialAnchor(400, 620, 340);
+    return a.footX === 200 && a.footY > 580 && a.pxPerUnit > 1.4 && a.pxPerUnit < 1.8;
   })(),
 );
 
