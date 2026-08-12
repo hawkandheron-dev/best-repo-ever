@@ -12,6 +12,9 @@ import {
   validateRig,
   boneOrder,
   DEFAULT_SKELETON,
+  HIP_STAND,
+  HEAD_ART_HEIGHT,
+  NOMINAL_HEIGHT,
   Z,
 } from '../src/fighter/rig/rigSchema.js';
 import {
@@ -449,10 +452,12 @@ for (const [id, bone, from] of [
 }
 
 // Kicks must reach the height they advertise, or "low/mid/high" is a lie.
+// Bands set from measured reach after the 1:4.5 re-proportioning: a low kick lands
+// at shin height, a mid at the waist, a high at the chin (the head bone sits at 264).
 for (const [id, minY, maxY] of [
-  ['attack.5K.l', 0, 70],
-  ['attack.5K.m', 70, 150],
-  ['attack.5K.h', 150, 260],
+  ['attack.5K.l', 0, 80],
+  ['attack.5K.m', 100, 200],
+  ['attack.5K.h', 200, 300],
 ]) {
   let peak = -Infinity;
   for (let f = 0; f < STANDARD_CLIPS[id].frames; f++) {
@@ -507,7 +512,7 @@ check(
       const w = composePose(rigged, evaluateClip(rigged, 'attack.2K.h', f).bones);
       highest = Math.max(highest, apply(w.get('pelvis'), 0, 0)[1]);
     }
-    return highest < 108;
+    return highest < HIP_STAND;
   })(),
 );
 
@@ -584,6 +589,29 @@ check(
   })(),
 );
 
+// The proportions are a deliberate choice (1:4.5 puts a 48 px head on a 220 px
+// fighter, the size at which a face cut from a painting reads as a specific person).
+// Pin them so a casual edit cannot quietly undo it.
+check('proportions are 1:4.5', Math.abs(NOMINAL_HEIGHT / HEAD_ART_HEIGHT - 4.5) < 0.05,
+  `got 1:${(NOMINAL_HEIGHT / HEAD_ART_HEIGHT).toFixed(2)}`);
+check('legs are roughly 44% of standing height', HIP_STAND / NOMINAL_HEIGHT > 0.40 && HIP_STAND / NOMINAL_HEIGHT < 0.50,
+  `got ${((HIP_STAND / NOMINAL_HEIGHT) * 100).toFixed(0)}%`);
+check(
+  'the head bone leaves exactly the head art above it',
+  (() => {
+    const w = composePose(rigged, restChannels(rigged).bones);
+    const headY = apply(w.get('head'), 0, 0)[1];
+    return Math.abs(headY + HEAD_ART_HEIGHT - NOMINAL_HEIGHT) < 2;
+  })(),
+);
+check(
+  'the hand hangs near hip height at rest, as a human arm does',
+  (() => {
+    const w = composePose(rigged, restChannels(rigged).bones);
+    return Math.abs(apply(w.get('handF'), 0, 0)[1] - HIP_STAND) < 30;
+  })(),
+);
+
 /* ── Pivot derivation (Rig Studio) ────────────────────────────────────────── */
 
 const anchor = { footX: 200, footY: 600, pxPerUnit: 2, viewX: 0, viewY: 0, viewScale: 1 };
@@ -609,8 +637,8 @@ check(
   (() => {
     const world = composePose(rigged, restChannels(rigged).bones);
     const px = boneOriginInSourcePx(world, 'pelvis', anchor);
-    // pelvis sits 108 units up from the feet.
-    return near(px[0], 200, 1e-6) && near(px[1], 600 - 108 * 2, 1e-6);
+    // The pelvis sits HIP_STAND units up from the feet, and image y runs downward.
+    return near(px[0], 200, 1e-6) && near(px[1], 600 - HIP_STAND * 2, 1e-6);
   })(),
 );
 
@@ -630,15 +658,16 @@ check(
 check(
   'moving a joint re-pivots the parts bound to it',
   (() => {
+    const raised = HIP_STAND + 50;
     const shifted = {
       ...rigged,
-      bones: rigged.bones.map((b) => (b.id === 'pelvis' ? { ...b, pos: [0, 150] } : b)),
+      bones: rigged.bones.map((b) => (b.id === 'pelvis' ? { ...b, pos: [0, raised] } : b)),
     };
     const targets = [{ id: 'p.torso', bone: 'torso', z: 20 }];
     const before = buildParts(rigged, targets, { 'p.torso': true }, {}, anchor)[0].pivot;
     const after = buildParts(shifted, targets, { 'p.torso': true }, {}, anchor)[0].pivot;
-    // Pelvis rose 42 units, so the torso joint rises 84 image px (pxPerUnit = 2).
-    return near(after[1], before[1] - 84, 1e-6);
+    // The pelvis rose 50 units, so the torso joint rises 100 image px (pxPerUnit = 2).
+    return near(after[1], before[1] - 100, 1e-6);
   })(),
 );
 

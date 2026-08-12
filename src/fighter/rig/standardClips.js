@@ -36,7 +36,7 @@ function clip(frames, loop, tracks, extras = {}) {
 const idle = clip(48, true, {
   // A slow two-beat breath. The whole body participates or it reads as a statue
   // with a twitching arm.
-  pelvis: { y: [[0, 108], [24, 105]] },
+  pelvis: { y: [[0, 150], [24, 146]] },
   torso: { rot: [[0, 0], [24, -1.5]] },
   chest: { rot: [[0, 0], [24, 2.5]] },
   neck: { rot: [[0, 0], [24, -1]] },
@@ -50,7 +50,7 @@ const idle = clip(48, true, {
 });
 
 const walkF = clip(32, true, {
-  pelvis: { y: [[0, 108], [8, 104], [16, 108], [24, 104]] },
+  pelvis: { y: [[0, 150], [8, 144], [16, 150], [24, 144]] },
   torso: { rot: [[0, 2], [16, 2]] },
   chest: { rot: [[0, 0], [8, -2], [24, 2]] },
   // Legs in antiphase — the near leg leads, the far leg trails by half a cycle.
@@ -71,7 +71,7 @@ const walkF = clip(32, true, {
 // Walking backward is not the forward cycle reversed: the fighter keeps facing the
 // opponent and leans away, so the torso and arm poses differ.
 const walkB = clip(32, true, {
-  pelvis: { y: [[0, 108], [8, 105], [16, 108], [24, 105]] },
+  pelvis: { y: [[0, 150], [8, 146], [16, 150], [24, 146]] },
   torso: { rot: [[0, -3], [16, -3]] },
   chest: { rot: [[0, -2], [8, 0], [24, -4]] },
   'legF.thigh': { rot: [[0, -110], [8, -88], [16, -68], [24, -88]] },
@@ -87,7 +87,7 @@ const walkB = clip(32, true, {
 });
 
 const crouchIn = clip(3, false, {
-  pelvis: { y: [[0, 108], [2, 62]] },
+  pelvis: { y: [[0, 150], [2, 86]] },
   torso: { rot: [[0, 0], [2, 8]] },
   chest: { rot: [[0, 0], [2, 6]] },
   'legF.thigh': { rot: [[0, -88], [2, -128]] },
@@ -102,7 +102,7 @@ const crouchIn = clip(3, false, {
 });
 
 const crouch = clip(24, true, {
-  pelvis: { y: [[0, 62], [12, 60]] },
+  pelvis: { y: [[0, 86], [12, 83]] },
   torso: { rot: [[0, 8], [12, 9.5]] },
   chest: { rot: [[0, 6], [12, 7]] },
   head: { rot: [[0, 0], [12, 1]] },
@@ -118,7 +118,7 @@ const crouch = clip(24, true, {
 });
 
 const crouchOut = clip(3, false, {
-  pelvis: { y: [[0, 62], [2, 108]] },
+  pelvis: { y: [[0, 86], [2, 150]] },
   torso: { rot: [[0, 8], [2, 0]] },
   'legF.thigh': { rot: [[0, -128], [2, -88]] },
   'legF.shin': { rot: [[0, 74], [2, -4]] },
@@ -135,7 +135,7 @@ const crouchOut = clip(3, false, {
 // 4 frames of pre-jump crouch. These frames are why jumps are punishable on
 // reaction, so the compression has to be readable.
 const jumpSquat = clip(4, false, {
-  pelvis: { y: [[0, 108], [3, 78]] },
+  pelvis: { y: [[0, 150], [3, 108]] },
   torso: { rot: [[0, 0], [3, 6]] },
   'legF.thigh': { rot: [[0, -88], [3, -114]] },
   'legF.shin': { rot: [[0, -4], [3, 44]] },
@@ -148,7 +148,7 @@ const jumpSquat = clip(4, false, {
 });
 
 const jumpRise = clip(6, false, {
-  pelvis: { y: [[0, 78], [5, 116]] },
+  pelvis: { y: [[0, 108], [5, 161]] },
   torso: { rot: [[0, 6], [5, -4]] },
   'legF.thigh': { rot: [[0, -114], [5, -74]] },
   'legF.shin': { rot: [[0, 44], [5, -34]] },
@@ -186,7 +186,7 @@ const jumpFall = clip(6, false, {
 });
 
 const land = clip(4, false, {
-  pelvis: { y: [[0, 96], [1, 74], [3, 108]] },
+  pelvis: { y: [[0, 133], [1, 103], [3, 150]] },
   torso: { rot: [[0, 4], [1, 10], [3, 0]] },
   'legF.thigh': { rot: [[0, -92], [1, -120], [3, -88]] },
   'legF.shin': { rot: [[0, -10], [1, 56], [3, -4]] },
@@ -199,7 +199,7 @@ const land = clip(4, false, {
 /* ── Dashes ───────────────────────────────────────────────────────────────── */
 
 const dashF = clip(18, false, {
-  pelvis: { y: [[0, 108], [3, 96], [12, 98], [17, 108]] },
+  pelvis: { y: [[0, 150], [3, 133], [12, 136], [17, 150]] },
   torso: { rot: [[0, 0], [3, 12], [12, 10], [17, 0]] },
   chest: { rot: [[0, 0], [4, -4], [17, 0]] },
   'legF.thigh': { rot: [[0, -88], [4, -46], [11, -104], [17, -88]] },
@@ -214,7 +214,7 @@ const dashF = clip(18, false, {
 });
 
 const dashB = clip(22, false, {
-  pelvis: { y: [[0, 108], [4, 100], [14, 102], [21, 108]] },
+  pelvis: { y: [[0, 150], [4, 139], [14, 142], [21, 150]] },
   torso: { rot: [[0, 0], [4, -10], [14, -8], [21, 0]] },
   'legF.thigh': { rot: [[0, -88], [5, -120], [14, -74], [21, -88]] },
   'legF.shin': { rot: [[0, -4], [5, 26], [14, -22], [21, -4]] },
@@ -291,7 +291,7 @@ function kick(frames, impact, height) {
   const lean = { low: 4, mid: -8, high: -16 }[height];
 
   return clip(frames, false, {
-    pelvis: { y: [[0, 108], [windup, 104], [impact, 100], [last, 108]] },
+    pelvis: { y: [[0, 150], [windup, 144], [impact, 139], [last, 150]] },
     torso: { rot: [[0, 0], [windup, 4], [impact, lean], [hold, lean * 0.9], [last, 0]] },
     chest: { rot: [[0, 0], [impact, lean * 0.5], [last, 0]] },
     head: { rot: [[0, 0], [impact, -lean * 0.4], [last, 0]] },
@@ -317,7 +317,7 @@ function crouchPunch(frames, impact) {
   const hold = impact + 2;
   const last = frames - 1;
   return clip(frames, false, {
-    pelvis: { y: [[0, 62], [impact, 60], [last, 62]] },
+    pelvis: { y: [[0, 86], [impact, 83], [last, 86]] },
     torso: { rot: [[0, 8], [windup, 4], [impact, 12], [last, 8]] },
     chest: { rot: [[0, 6], [windup, 14], [impact, -6], [last, 6]] },
     'armF.up': { rot: [[0, -58], [windup, -70], [impact, -26], [hold, -30], [last, -58]] },
@@ -341,7 +341,7 @@ function crouchKick(frames, impact) {
   const hold = impact + 2;
   const last = frames - 1;
   return clip(frames, false, {
-    pelvis: { y: [[0, 62], [windup, 54], [impact, 44], [hold, 46], [last, 62]] },
+    pelvis: { y: [[0, 86], [windup, 75], [impact, 61], [hold, 64], [last, 86]] },
     torso: { rot: [[0, 8], [windup, 14], [impact, 22], [last, 8]] },
     chest: { rot: [[0, 6], [impact, 10], [last, 6]] },
     head: { rot: [[0, 0], [impact, -8], [last, 0]] },
@@ -420,7 +420,7 @@ const blockStand = clip(6, false, {
 });
 
 const blockCrouch = clip(6, false, {
-  pelvis: { y: [[0, 62], [3, 60]] },
+  pelvis: { y: [[0, 86], [3, 83]] },
   torso: { rot: [[0, 8], [3, 12]] },
   chest: { rot: [[0, 6], [3, 12]] },
   'armF.up': { rot: [[0, -58], [3, -38]] },
@@ -457,7 +457,7 @@ function hurt(frames, severity) {
 }
 
 const hurtCrouch = clip(10, false, {
-  pelvis: { y: [[0, 62], [3, 58]], x: [[0, 0], [3, -6], [9, 0]] },
+  pelvis: { y: [[0, 86], [3, 81]], x: [[0, 0], [3, -6], [9, 0]] },
   torso: { rot: [[0, 8], [3, 0], [9, 8]] },
   chest: { rot: [[0, 6], [3, -8], [9, 6]] },
   head: { rot: [[0, 0], [3, -16], [9, 0]] },
@@ -472,7 +472,7 @@ const hurtCrouch = clip(10, false, {
 
 const kdFall = clip(20, false, {
   // Feet leave the ground, body rotates back, lands flat.
-  pelvis: { y: [[0, 108], [6, 126], [14, 34], [19, 22]], x: [[0, 0], [8, -26], [19, -54]] },
+  pelvis: { y: [[0, 150], [6, 175], [14, 34], [19, 22]], x: [[0, 0], [8, -26], [19, -54]] },
   torso: { rot: [[0, 0], [6, -28], [14, -68], [19, -84]] },
   chest: { rot: [[0, 0], [8, -18], [19, -6]] },
   head: { rot: [[0, 0], [6, -18], [19, 10]] },
@@ -500,7 +500,7 @@ const kdLie = clip(12, true, {
 });
 
 const getup = clip(22, false, {
-  pelvis: { y: [[0, 22], [8, 48], [16, 96], [21, 108]], x: [[0, -54], [10, -24], [21, 0]] },
+  pelvis: { y: [[0, 22], [8, 67], [16, 133], [21, 150]], x: [[0, -54], [10, -24], [21, 0]] },
   torso: { rot: [[0, -84], [8, -46], [16, -8], [21, 0]] },
   chest: { rot: [[0, -6], [10, 10], [21, 0]] },
   head: { rot: [[0, 10], [10, 4], [21, 0]] },
@@ -517,7 +517,7 @@ const getup = clip(22, false, {
 });
 
 const ko = clip(34, false, {
-  pelvis: { y: [[0, 108], [4, 112], [12, 58], [22, 26], [33, 20]], x: [[0, 0], [12, -18], [33, -62]] },
+  pelvis: { y: [[0, 150], [4, 156], [12, 81], [22, 26], [33, 20]], x: [[0, 0], [12, -18], [33, -62]] },
   torso: { rot: [[0, 0], [4, 10], [12, -36], [22, -74], [33, -88]] },
   chest: { rot: [[0, 0], [6, -14], [22, -10], [33, -2]] },
   neck: { rot: [[0, 0], [6, -18], [33, 6]] },
@@ -536,7 +536,7 @@ const ko = clip(34, false, {
 
 const win = clip(60, true, {
   // Arms out, chin up. Slow and pleased with itself.
-  pelvis: { y: [[0, 108], [30, 110]] },
+  pelvis: { y: [[0, 150], [30, 153]] },
   torso: { rot: [[0, 0], [20, -4], [44, -2]] },
   chest: { rot: [[0, 0], [20, 6], [44, 3]] },
   neck: { rot: [[0, 0], [20, -4]] },
@@ -558,7 +558,7 @@ const win = clip(60, true, {
  * forward together on the spawn frame (11).
  */
 const spQcfP = clip(34, false, {
-  pelvis: { x: [[0, 0], [6, -6], [11, 6], [20, 4], [33, 0]], y: [[0, 108], [6, 102], [11, 106], [33, 108]] },
+  pelvis: { x: [[0, 0], [6, -6], [11, 6], [20, 4], [33, 0]], y: [[0, 150], [6, 142], [11, 147], [33, 150]] },
   torso: { rot: [[0, 0], [6, -10], [11, 8], [20, 6], [33, 0]] },
   chest: { rot: [[0, 0], [6, 16], [11, -12], [20, -10], [33, 0]] },
   head: { rot: [[0, 0], [6, 6], [11, -4], [33, 0]] },
@@ -577,7 +577,7 @@ const spQcfP = clip(34, false, {
 /** The dragon-punch reversal: rising uppercut, body leaves the ground. */
 const spDpP = clip(40, false, {
   pelvis: {
-    y: [[0, 108], [3, 84], [8, 170], [16, 210], [26, 130], [34, 106], [39, 108]],
+    y: [[0, 150], [3, 117], [8, 236], [16, 292], [26, 181], [34, 147], [39, 150]],
     x: [[0, 0], [3, -4], [8, 14], [20, 30], [34, 8], [39, 0]],
   },
   torso: { rot: [[0, 0], [3, 8], [8, -14], [18, -20], [30, -4], [39, 0]] },

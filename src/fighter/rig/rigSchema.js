@@ -20,6 +20,26 @@ export const SCHEMA_VERSION = 1;
 export const NOMINAL_HEIGHT = 340;
 
 /**
+ * Proportions, at 1:4.5 — head art is NOMINAL_HEIGHT / 4.5, which at a 220 px
+ * fighter renders a 48 px head. That is the size at which a face cut from a painting
+ * reads as a specific person rather than merely "a bearded man"; below ~44 px the
+ * likeness is gone and only silhouette and palette distinguish characters.
+ */
+export const HIP_STAND = 150;
+export const HEAD_ART_HEIGHT = Math.round(NOMINAL_HEIGHT / 4.5);
+
+/**
+ * Hip heights the animation clips key against. Named so that re-proportioning costs
+ * one edit here rather than sixty-eight literals across `standardClips.js` — which
+ * is exactly what the move from 108 to 150 cost before these existed.
+ */
+export const HIP_CROUCH = 86;
+export const HIP_SQUAT = 108;   // pre-jump compression
+export const HIP_LAND = 103;    // landing absorption
+export const HIP_SWEEP = 61;    // lowest crouching attack
+export const HIP_DOWN = 22;     // lying on the ground: body thickness, not leg length
+
+/**
  * The standard humanoid skeleton for a side-view fighter: 23 bones.
  *
  * `pos` is the bone's origin relative to its parent; `rest` is its rest angle in
@@ -29,11 +49,11 @@ export const NOMINAL_HEIGHT = 340;
  */
 export const DEFAULT_SKELETON = [
   { id: 'root', parent: null, pos: [0, 0], rest: 0 },
-  { id: 'pelvis', parent: 'root', pos: [0, 108], rest: 0 },
+  { id: 'pelvis', parent: 'root', pos: [0, HIP_STAND], rest: 0 },
   { id: 'torso', parent: 'pelvis', pos: [0, 8], rest: 0 },
   { id: 'chest', parent: 'torso', pos: [2, 56], rest: 0 },
   { id: 'neck', parent: 'chest', pos: [4, 40], rest: 0 },
-  { id: 'head', parent: 'neck', pos: [2, 14], rest: 0 },
+  { id: 'head', parent: 'neck', pos: [2, 10], rest: 0 },
 
   // Near arm (camera-side) — the one that throws most punches.
   { id: 'armF.up', parent: 'chest', pos: [10, 34], rest: -75 },
@@ -47,17 +67,17 @@ export const DEFAULT_SKELETON = [
 
   // Near leg.  The chain thigh→shin→foot lands the foot at y ≈ 0.
   { id: 'legF.thigh', parent: 'pelvis', pos: [8, -4], rest: -88 },
-  { id: 'legF.shin', parent: 'legF.thigh', pos: [54, 0], rest: -4 },
-  { id: 'footF', parent: 'legF.shin', pos: [50, 0], rest: 88 },
+  { id: 'legF.shin', parent: 'legF.thigh', pos: [76, 0], rest: -4 },
+  { id: 'footF', parent: 'legF.shin', pos: [70, 0], rest: 88 },
 
   // Far leg.
   { id: 'legB.thigh', parent: 'pelvis', pos: [-10, -4], rest: -92 },
-  { id: 'legB.shin', parent: 'legB.thigh', pos: [54, 0], rest: -6 },
-  { id: 'footB', parent: 'legB.shin', pos: [50, 0], rest: 92 },
+  { id: 'legB.shin', parent: 'legB.thigh', pos: [76, 0], rest: -6 },
+  { id: 'footB', parent: 'legB.shin', pos: [70, 0], rest: 92 },
 
   // Drapery: a two-link chain so robes can swing independently of the legs.
   { id: 'robeA', parent: 'pelvis', pos: [0, 4], rest: -90 },
-  { id: 'robeB', parent: 'robeA', pos: [40, 0], rest: 0 },
+  { id: 'robeB', parent: 'robeA', pos: [77, 0], rest: 0 },
 
   // Attachment points. These carry no art — FX and props anchor to them.
   { id: 'fx.hand', parent: 'handF', pos: [18, 0], rest: 0 },
