@@ -33,6 +33,18 @@ export const HEAD_ART_HEIGHT = Math.round(NOMINAL_HEIGHT / 4.5);
  * one edit here rather than sixty-eight literals across `standardClips.js` — which
  * is exactly what the move from 108 to 150 cost before these existed.
  */
+/**
+ * The canonical sprite scale: a fighter is FIGHTER_PX tall on screen, so every part's
+ * pixel size follows from its size in rig units. Sprites are authored at exactly this
+ * scale and drawn 1:1, because a non-integer rescale at draw time is what turns crisp
+ * pixel art into mush.
+ */
+export const FIGHTER_PX = 220;
+export const STAGE_WIDTH = 960;   // 1080p / 2
+export const STAGE_HEIGHT = 540;
+export const PX_PER_UNIT = FIGHTER_PX / NOMINAL_HEIGHT;
+export const HEAD_PX = Math.round(HEAD_ART_HEIGHT * PX_PER_UNIT);
+
 export const HIP_CROUCH = 86;
 export const HIP_SQUAT = 108;   // pre-jump compression
 export const HIP_LAND = 103;    // landing absorption

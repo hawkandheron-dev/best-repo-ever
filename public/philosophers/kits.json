@@ -1,0 +1,109 @@
+{
+  "format": "mews.kits",
+  "version": 1,
+  "sheet": "heads.sheet.png",
+  "sheetSize": [
+    256,
+    64
+  ],
+  "characters": [
+    {
+      "id": "aristotle",
+      "name": "Aristotle",
+      "epithet": "The Philosopher",
+      "school": "classical",
+      "doctrine": "The soul never thinks without an image",
+      "element": "aether",
+      "palette": {
+        "skin": {
+          "primary": "#CEA074",
+          "secondary": "#B1926D"
+        },
+        "hair": {
+          "primary": "#B4946E",
+          "secondary": "#A38869"
+        },
+        "outfit": {
+          "primary": "#9DADBD",
+          "secondary": "#846747",
+          "tertiary": "#DCB26B"
+        },
+        "outline": "#211A15",
+        "accent": "#91735A",
+        "element": "#E0CE8A"
+      },
+      "measured": {
+        "skin": {
+          "primary": "#CEA074",
+          "secondary": "#B1926D"
+        },
+        "hair": {
+          "primary": "#B4946E",
+          "secondary": "#A38869"
+        },
+        "outfit": {
+          "primary": "#9DADBD",
+          "secondary": "#846747",
+          "tertiary": "#DCB26B"
+        },
+        "outline": "#695344",
+        "accent": "#91735A",
+        "element": "#E0CE8A"
+      },
+      "boost": {
+        "spread": 1.7,
+        "separate": 1
+      },
+      "head": {
+        "region": [
+          1,
+          1,
+          37,
+          46
+        ],
+        "pivot": [
+          19,
+          46
+        ]
+      },
+      "garment": null,
+      "accessory": null,
+      "source": {
+        "title": "The School of Athens (detail)",
+        "artist": "Raphael",
+        "year": 1511,
+        "url": "https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg",
+        "license": "public-domain",
+        "note": "Central figure holding the Ethics, gesturing toward the earth."
+      },
+      "notes": "",
+      "ramps": {
+        "skin": {
+          "light": "#FFDDA6",
+          "base": "#DAAA7B",
+          "shadow": "#895943"
+        },
+        "hair": {
+          "light": "#A59472",
+          "base": "#7E684D",
+          "shadow": "#4F382B"
+        },
+        "outfitP": {
+          "light": "#D6EBF7",
+          "base": "#9DADBD",
+          "shadow": "#5F6776"
+        },
+        "outfitS": {
+          "light": "#AC976D",
+          "base": "#846747",
+          "shadow": "#533626"
+        },
+        "outfitT": {
+          "light": "#FFDC97",
+          "base": "#DCB26B",
+          "shadow": "#8A5D37"
+        }
+      }
+    }
+  ]
+}

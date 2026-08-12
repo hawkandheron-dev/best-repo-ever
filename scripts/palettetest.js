@@ -15,8 +15,15 @@ import {
   PALETTE_ROLES, MATERIALS, DEFAULT_BOOST, NO_BOOST,
 } from '../src/fighter/palette/paletteSchema.js';
 import {
-  buildRamp, buildRamps, depthRamps, quantisationTargets, checkRamps, rampsToHex, DEPTH_FACTOR,
+  buildRamp, buildRamps, depthRamps, quantisationTargets, checkRamps, rampsToHex,
+  deepenOutline, SPRITE_MATERIALS, DEPTH_FACTOR,
 } from '../src/fighter/palette/ramp.js';
+import {
+  createKit, createKitsDocument, upsertKit, findKit, validateKits, findSheetOverlaps,
+  ACCESSORY_KINDS,
+} from '../src/fighter/palette/kitSchema.js';
+import { packSheet, placementMap } from '../src/fighter/palette/sheetPack.js';
+import { DEFAULT_SKELETON } from '../src/fighter/rig/rigSchema.js';
 import {
   createImage, cloneImage, maskBackground, quantiseToTargets, despeckle,
   addOutline, opaqueBounds, cropImage, spriteify,
@@ -326,6 +333,175 @@ check(
       && at(image, 2, 2)[0] === 200;
   })(),
 );
+
+/* ── Outline depth ────────────────────────────────────────────────────────── */
+
+// A fresco's darkest pixels are a mid-brown. Honest, and useless as an outline.
+const FRESCO_DARK = '#695344';
+check(
+  'a sampled fresco outline is too light to read',
+  checkRamps(buildRamps(MEASURED_ARISTOTLE, DEFAULT_BOOST), { outline: hexToRgb(FRESCO_DARK) })
+    .some((p) => p.includes('silhouette will not read')),
+);
+check(
+  'deepenOutline fixes it while keeping the sampled hue',
+  (() => {
+    const r = buildRamps(MEASURED_ARISTOTLE, DEFAULT_BOOST);
+    const deep = deepenOutline(FRESCO_DARK, r);
+    const before = rgbToHsv(hexToRgb(FRESCO_DARK))[0];
+    const after = rgbToHsv(hexToRgb(deep))[0];
+    return checkRamps(r, { outline: hexToRgb(deep) }).length === 0
+      && Math.abs(before - after) < 12
+      && luminance(hexToRgb(deep)) < luminance(hexToRgb(FRESCO_DARK));
+  })(),
+);
+check(
+  'deepenOutline leaves an already-dark outline alone',
+  deepenOutline('#0A0806', buildRamps(MEASURED_ARISTOTLE, DEFAULT_BOOST)) === '#0A0806',
+);
+
+/* ── Per-sprite target subsets ────────────────────────────────────────────── */
+
+// Offering every material lets close ones steal each other's pixels. On Aristotle,
+// whose skin, hair, chiton and trim share a warm-brown band, the unrestricted palette
+// mapped a quarter of his face to chiton tones.
+check(
+  'a head is offered only skin, hair, collar, outline and accent',
+  (() => {
+    const names = quantisationTargets(palette, DEFAULT_BOOST, { materials: SPRITE_MATERIALS.head })
+      .map((t) => t.name);
+    return names.some((n) => n.startsWith('skin.'))
+      && names.some((n) => n.startsWith('hair.'))
+      && names.includes('outline')
+      && !names.some((n) => n.startsWith('outfitS.'))
+      && !names.some((n) => n.startsWith('outfitT.'));
+  })(),
+);
+check(
+  'every sprite kind always gets an outline target',
+  Object.values(SPRITE_MATERIALS).every(
+    (materials) => quantisationTargets(palette, DEFAULT_BOOST, { materials }).some((t) => t.name === 'outline'),
+  ),
+);
+check(
+  'an unrestricted target list still offers everything',
+  quantisationTargets(palette, DEFAULT_BOOST).length === MATERIALS.length * 3 + 2,
+);
+
+/* ── Kit documents ────────────────────────────────────────────────────────── */
+
+const goodKit = createKit('aristotle', {
+  name: 'Aristotle',
+  palette,
+  head: { region: [1, 1, 37, 46], pivot: [19, 46] },
+  source: { title: 'x', artist: 'y', year: 1511, url: '', license: 'public-domain', note: '' },
+});
+let doc = upsertKit(createKitsDocument({ sheetSize: [256, 64] }), goodKit);
+
+check('a well-formed kits document validates clean', validateKits(doc).length === 0, validateKits(doc).join('; '));
+check('findKit locates a character', findKit(doc, 'aristotle')?.name === 'Aristotle');
+check('findKit returns null for a stranger', findKit(doc, 'plato') === null);
+
+check('upsert replaces rather than duplicating', (() => {
+  const again = upsertKit(doc, { ...goodKit, name: 'Aristoteles' });
+  return again.characters.length === 1 && again.characters[0].name === 'Aristoteles';
+})());
+check('upsert appends a new character', (() => {
+  const two = upsertKit(doc, createKit('plato', {
+    palette,
+    head: { region: [40, 1, 30, 40], pivot: [15, 40] },
+    source: { license: 'public-domain' },
+  }));
+  return two.characters.length === 2 && validateKits(two).length === 0;
+})());
+check('upsert does not mutate the original document', doc.characters.length === 1);
+
+check('a kit with no head is reported', validateKits(upsertKit(doc, createKit('nohead', {
+  palette, source: { license: 'public-domain' },
+}))).some((p) => p.includes('no head')));
+check('a kit with no palette is reported', validateKits(upsertKit(doc, createKit('nopal', {
+  head: { region: [0, 0, 1, 1], pivot: [0, 0] }, source: { license: 'public-domain' },
+}))).some((p) => p.includes('no palette')));
+check('a missing licence is reported', validateKits(upsertKit(doc, createKit('nolic', {
+  palette, head: { region: [0, 0, 1, 1], pivot: [0, 0] },
+}))).some((p) => p.includes('no licence')));
+
+// A region outside the sheet makes the renderer sample garbage.
+check(
+  'a region outside the sheet is reported',
+  validateKits(upsertKit(doc, createKit('offsheet', {
+    palette,
+    head: { region: [250, 60, 40, 40], pivot: [0, 0] },
+    source: { license: 'public-domain' },
+  }))).some((p) => p.includes('outside the')),
+);
+check('a zero-size region is reported', validateKits(upsertKit(doc, createKit('zero', {
+  palette, head: { region: [0, 0, 0, 10], pivot: [0, 0] }, source: { license: 'public-domain' },
+}))).some((p) => p.includes('zero or negative')));
+
+check(
+  'an unknown accessory kind is reported',
+  validateKits(upsertKit(doc, createKit('acc', {
+    palette,
+    head: { region: [1, 1, 10, 10], pivot: [0, 0] },
+    accessory: { kind: 'worn', region: [40, 1, 10, 10] },
+    source: { license: 'public-domain' },
+  }))).some((p) => p.includes('accessory kind')),
+);
+check('the known accessory kinds attach to real bones', (() => {
+  const bones = Object.values(ACCESSORY_KINDS).map((a) => a.bone);
+  return bones.includes('prop') && bones.includes('fx.core')
+    && bones.every((b) => DEFAULT_SKELETON.some((s) => s.id === b));
+})());
+
+// Two sprites sharing pixels is silent corruption, so it gets its own check.
+check('overlapping sheet regions are detected', (() => {
+  const clash = upsertKit(doc, createKit('clash', {
+    palette,
+    head: { region: [10, 10, 40, 40], pivot: [0, 0] },
+    source: { license: 'public-domain' },
+  }));
+  return findSheetOverlaps(clash).length > 0;
+})());
+check('non-overlapping regions are not flagged', findSheetOverlaps(doc).length === 0);
+
+/* ── Sheet packing ────────────────────────────────────────────────────────── */
+
+const items = [
+  { id: 'b.head', width: 30, height: 40 },
+  { id: 'a.head', width: 37, height: 46 },
+  { id: 'c.head', width: 20, height: 46 },
+];
+const packed = packSheet(items);
+check('packing places every item', packed.placements.length === items.length);
+check('packing reports a non-zero sheet', packed.width > 0 && packed.height > 0);
+check('packed sizes match the inputs', items.every(
+  (i) => placementMap(packed).get(i.id).width === i.width,
+));
+check('every item fits inside the sheet', packed.placements.every(
+  (p) => p.x >= 0 && p.y >= 0 && p.x + p.width <= packed.width && p.y + p.height <= packed.height,
+));
+check('packed items do not overlap', (() => {
+  const ps = packed.placements;
+  for (let i = 0; i < ps.length; i++) {
+    for (let j = i + 1; j < ps.length; j++) {
+      const a = ps[i]; const b = ps[j];
+      if (a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height) return false;
+    }
+  }
+  return true;
+})());
+// Determinism matters more than tightness: a churning sheet churns every diff.
+check('packing is deterministic regardless of input order', (() => {
+  const a = JSON.stringify(packSheet(items).placements);
+  const b = JSON.stringify(packSheet([...items].reverse()).placements);
+  return a === b;
+})());
+check('packing an empty list is not an error', packSheet([]).placements.length === 0);
+check('sheet dimensions are powers of two', (() => {
+  const isPow2 = (n) => (n & (n - 1)) === 0;
+  return isPow2(packed.width) && isPow2(packed.height);
+})());
 
 /* ── Report ───────────────────────────────────────────────────────────────── */
 

@@ -86,20 +86,66 @@ export function depthRamps(ramps, factor = DEPTH_FACTOR) {
 }
 
 /**
- * Flatten ramps into the target list a quantiser matches against.
- * Includes the outline and accent, which are single colours rather than ramps.
+ * Which materials each kind of sprite is allowed to be made of.
+ *
+ * This matters more than it looks. Offering every material as a quantisation target
+ * lets colours from one steal pixels from another whenever they are close — on
+ * Aristotle, whose skin, hair, chiton and gold trim all sit in the same warm-brown
+ * band, the unrestricted palette mapped a quarter of his FACE to chiton tones. A head
+ * contains skin, hair, an outline and a collar; it contains no hem and no sandal.
  */
-export function quantisationTargets(palette, boost = DEFAULT_BOOST) {
+export const SPRITE_MATERIALS = {
+  head: ['skin', 'hair', 'outfitP'],
+  garment: ['outfitP', 'outfitS', 'outfitT'],
+  accessory: ['outfitT', 'accent'],
+  limb: ['skin'],
+  robe: ['outfitP', 'outfitS', 'outfitT'],
+};
+
+/**
+ * Flatten ramps into the target list a quantiser matches against.
+ *
+ * `materials` restricts which ramps are offered; omit it for all five. The outline is
+ * always included, since every sprite has an edge. `accent` is included only when it
+ * is not already a listed material, so leather and props stay available without
+ * competing for skin.
+ */
+export function quantisationTargets(palette, boost = DEFAULT_BOOST, { materials = null } = {}) {
   const ramps = buildRamps(palette, boost);
   const stopNames = ['light', 'base', 'shadow'];
+  const allowed = materials ? new Set(materials) : null;
   const targets = [];
 
   for (const [id, stops] of Object.entries(ramps)) {
+    if (allowed && !allowed.has(id)) continue;
     stops.forEach((rgb, i) => targets.push({ name: `${id}.${stopNames[i]}`, rgb }));
   }
   targets.push({ name: 'outline', rgb: hexToRgb(palette.outline) });
-  targets.push({ name: 'accent', rgb: hexToRgb(palette.accent) });
+  if (!allowed || allowed.has('accent')) {
+    targets.push({ name: 'accent', rgb: hexToRgb(palette.accent) });
+  }
   return targets;
+}
+
+/**
+ * Darken a measured outline until it sits clear of the darkest material shadow.
+ *
+ * Sampling the darkest pixels of a painting gives an honest colour that does not
+ * work as an outline. Rather than substituting black — which no fresco contains and
+ * which makes a sprite look like a cartoon pasted on the stage — keep the sampled hue
+ * and push its value down until the silhouette reads.
+ */
+export function deepenOutline(outlineHex, ramps, { minOutlineGap = 28, margin = 3 } = {}) {
+  const darkestShadow = Math.min(...Object.values(ramps).map((stops) => luminance(stops[2])));
+  let rgb = hexToRgb(outlineHex);
+  let guard = 0;
+  // Aim a little past the threshold: the return value is a rounded hex, and rounding
+  // down can otherwise land just under the gap this loop was trying to clear.
+  while (darkestShadow - luminance(rgb) < minOutlineGap + margin && guard < 40) {
+    rgb = darken(rgb, 0.92);
+    guard++;
+  }
+  return rgbToHex(rgb);
 }
 
 /** Hex view of the ramps, for display and for writing into a kit file. */
@@ -115,8 +161,21 @@ export function rampsToHex(ramps) {
  * Sanity checks on derived ramps: each must descend in luminance from light to
  * shadow, and skin must stay clear of hair or the head turns to mush at sprite size.
  */
-export function checkRamps(ramps, { minSkinHairGap = 40 } = {}) {
+export function checkRamps(ramps, { minSkinHairGap = 40, outline = null, minOutlineGap = 28 } = {}) {
   const problems = [];
+
+  // "Darker than the bases" is not the same as "dark enough to read as an edge". A
+  // fresco's darkest pixels are a mid-brown, and an outline that close to the hair
+  // shadow makes the silhouette dissolve into the stage behind it.
+  if (outline) {
+    const darkestShadow = Math.min(...Object.values(ramps).map((stops) => luminance(stops[2])));
+    const gap = darkestShadow - luminance(outline);
+    if (gap < minOutlineGap) {
+      problems.push(
+        `Outline is only ${gap.toFixed(0)} luma below the darkest shadow (want ${minOutlineGap}+) — the silhouette will not read`,
+      );
+    }
+  }
 
   for (const [id, stops] of Object.entries(ramps)) {
     const [light, base, shadow] = stops.map(luminance);

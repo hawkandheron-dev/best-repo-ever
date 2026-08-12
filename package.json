@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "sim": "vite-node scripts/sim.js",
     "rigtest": "vite-node scripts/rigtest.js",
-    "palettetest": "vite-node scripts/palettetest.js"
+    "palettetest": "vite-node scripts/palettetest.js",
+    "buildkit": "vite-node scripts/buildkit.js"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
