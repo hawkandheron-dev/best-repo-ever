@@ -1,0 +1,826 @@
+<title>Pigment Card</title>
+<style>
+  /* Light is the base. Dark overrides only tokens, twice, so an explicit choice
+     wins in both directions and the un-stamped "system" state still resolves. */
+  :root {
+    --ground: #E9EAEE;
+    --surface: #F7F8FA;
+    --surface-sunk: #DFE1E7;
+    --line: #C8CCD6;
+    --line-soft: #DCDFE7;
+    --ink: #1A1D24;
+    --ink-mid: #4C525F;
+    --ink-dim: #757C8B;
+    --focus: #9A7B33;
+    --shadow: rgba(26, 29, 36, 0.13);
+    --stage: #C3C7D1;
+
+    --step--1: 0.78rem;
+    --step-0: 0.92rem;
+    --step-1: 1.12rem;
+    --step-2: 1.45rem;
+    --step-3: 2.05rem;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #14171C;
+      --surface: #1C2027;
+      --surface-sunk: #0E1116;
+      --line: #2E3441;
+      --line-soft: #232833;
+      --ink: #E7E9ED;
+      --ink-mid: #A8AEBB;
+      --ink-dim: #7A8290;
+      --focus: #C9A45C;
+      --shadow: rgba(0, 0, 0, 0.5);
+      --stage: #262B34;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #14171C;
+    --surface: #1C2027;
+    --surface-sunk: #0E1116;
+    --line: #2E3441;
+    --line-soft: #232833;
+    --ink: #E7E9ED;
+    --ink-mid: #A8AEBB;
+    --ink-dim: #7A8290;
+    --focus: #C9A45C;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --stage: #262B34;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--step-0);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 3vw, 2rem) 4rem;
+  }
+
+  header { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem; }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: var(--step-3);
+    font-weight: 600;
+    line-height: 1.1;
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+
+  .attrib {
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--ink-mid);
+    font-size: var(--step-1);
+    max-width: 62ch;
+  }
+
+  .lede { color: var(--ink-mid); max-width: 66ch; margin: 0.25rem 0 0; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--ink-dim);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .preview { position: static; }
+  }
+
+  /* ── Pigment chips ─────────────────────────────────────────────────────── */
+
+  .group { margin-bottom: 1.75rem; }
+
+  .group > .eyebrow {
+    display: block;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 0.6rem;
+  }
+
+  .chip {
+    display: grid;
+    grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.55rem 0.35rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .chip:last-child { border-bottom: none; }
+
+  .well {
+    position: relative;
+    width: 2.6rem;
+    height: 2.6rem;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 3px var(--shadow);
+    overflow: hidden;
+  }
+
+  .well input[type="color"] {
+    position: absolute;
+    inset: -25%;
+    width: 150%;
+    height: 150%;
+    border: none;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .well input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .meta { min-width: 0; }
+  .role { font-weight: 550; }
+
+  .measured {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .measured b { color: var(--ink-mid); font-weight: 500; }
+
+  .hexfield {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+    width: 10ch;
+    padding: 0.35rem 0.3rem;
+    text-align: center;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+  }
+
+  .hexfield:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .hexfield[aria-invalid="true"] { border-color: #B4443A; }
+
+  /* The derived ramp: what an edit actually produces downstream. */
+  .ramp { display: flex; gap: 2px; margin-top: 0.35rem; }
+
+  .ramp span {
+    flex: 1;
+    height: 0.5rem;
+    border: 1px solid var(--line-soft);
+    border-radius: 1px;
+  }
+
+  /* ── Preview ───────────────────────────────────────────────────────────── */
+
+  .preview {
+    position: sticky;
+    top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+
+  .stage {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 1.25rem;
+    align-items: end;
+    justify-content: center;
+    justify-items: center;
+    padding: 1rem 0.75rem 0.5rem;
+    background: var(--stage);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    overflow-x: auto;
+  }
+
+  canvas { image-rendering: pixelated; display: block; }
+
+  .caption {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--ink-dim);
+    text-align: center;
+  }
+
+  .controls { display: flex; flex-direction: column; gap: 0.65rem; }
+
+  .slider { display: grid; grid-template-columns: 6.5rem 1fr 3.5rem; gap: 0.6rem; align-items: center; }
+  .slider label { font-size: var(--step--1); color: var(--ink-mid); }
+  .slider output { font-family: var(--mono); font-size: var(--step--1); color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+  .slider input { accent-color: var(--focus); min-width: 0; }
+
+  .note {
+    font-size: var(--step--1);
+    color: var(--ink-dim);
+    border-left: 2px solid var(--line);
+    padding-left: 0.7rem;
+    margin: 0;
+  }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+  button {
+    font-family: var(--sans);
+    font-size: var(--step--1);
+    font-weight: 550;
+    padding: 0.5rem 0.85rem;
+    color: var(--ink);
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  button:hover { border-color: var(--ink-dim); }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button.primary { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+
+  .warn {
+    font-size: var(--step--1);
+    color: #B4443A;
+    font-family: var(--mono);
+    min-height: 1.2em;
+  }
+
+  :root[data-theme="dark"] .warn { color: #E08B7E; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .warn { color: #E08B7E; } }
+
+  details { border-top: 1px solid var(--line); padding-top: 0.75rem; }
+  summary { cursor: pointer; font-size: var(--step--1); color: var(--ink-mid); }
+  summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    max-height: 18rem;
+    overflow: auto;
+    padding: 0.75rem;
+    margin: 0.6rem 0 0;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    color: var(--ink-mid);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Philosopher kit · palette</span>
+    <h1>Aristotle</h1>
+    <p class="attrib">Raphael, <em>The School of Athens</em> (detail), 1511 · public domain</p>
+    <p class="lede">
+      Ten colours drive the whole fighter. The shared limbs are drawn in them, and the head
+      cut from the fresco is reduced to them — which is what stops the head reading as a
+      photograph pasted onto a cartoon. Everything below was measured off the painting.
+      Change anything; the figure and the head both follow.
+    </p>
+  </header>
+
+  <div class="layout">
+    <section id="chips" aria-label="Palette roles"></section>
+
+    <aside class="preview">
+      <div class="stage">
+        <div>
+          <canvas id="figure" width="176" height="288"></canvas>
+          <div class="caption">limbs · placeholder</div>
+        </div>
+        <div>
+          <canvas id="head" width="148" height="196"></canvas>
+          <div class="caption" id="headCaption">head · 37×49</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="slider">
+          <label for="spread">Ramp spread</label>
+          <input id="spread" type="range" min="1" max="2.6" step="0.05" value="1.7" />
+          <output id="spreadOut">1.70</output>
+        </div>
+        <div class="slider">
+          <label for="separate">Skin ÷ hair</label>
+          <input id="separate" type="range" min="0" max="1.6" step="0.05" value="1" />
+          <output id="separateOut">1.00</output>
+        </div>
+      </div>
+
+      <p class="note">
+        A faded fresco puts skin and hair within 16 luma of each other, which quantises to
+        mush. These two push them apart. Drop both to zero to see exactly what the painting
+        said — and why it doesn't work at sprite size.
+      </p>
+
+      <p class="note">
+        The limbs are stand-in capsules at the right proportions, there to show whether the
+        palette holds together across body and face. The shaped sprites — hands, fists,
+        sandalled feet, a draped himation — are the next piece of work.
+      </p>
+
+      <p class="warn" id="warn"></p>
+
+      <div class="actions">
+        <button type="button" id="reset">Reset to measured</button>
+        <button type="button" id="copy" class="primary">Copy kit JSON</button>
+        <button type="button" id="download">Download</button>
+      </div>
+
+      <details>
+        <summary>Kit JSON</summary>
+        <pre id="json"></pre>
+      </details>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ── Embedded data ─────────────────────────────────────────────────────────
+   The head is the masked, downsampled, UN-quantised crop, so the preview can
+   re-quantise it live against whatever palette is on screen. Inlined because
+   artifacts run under a CSP that blocks every external fetch. */
+const RAW_HEAD = 'data:image/png;base64,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';
+const KIT = {"id":"aristotle","name":"Aristotle","epithet":"The Philosopher","school":"classical","doctrine":"The soul never thinks without an image","element":"aether","palette":{"skin":{"primary":"#CEA074","secondary":"#B1926D"},"hair":{"primary":"#B4946E","secondary":"#A38869"},"outfit":{"primary":"#9DADBD","secondary":"#846747","tertiary":"#DCB26B"},"outline":"#211A15","accent":"#91735A","element":"#E0CE8A"},"measured":{"skin":{"primary":"#CEA074","secondary":"#B1926D"},"hair":{"primary":"#B4946E","secondary":"#A38869"},"outfit":{"primary":"#9DADBD","secondary":"#846747","tertiary":"#DCB26B"},"outline":"#695344","accent":"#91735A","element":"#E0CE8A"},"boost":{"spread":1.7,"separate":1},"head":{"region":[1,1,37,46],"pivot":[19,46]},"garment":null,"accessory":null,"source":{"title":"The School of Athens (detail)","artist":"Raphael","year":1511,"url":"https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg","license":"public-domain","note":"Central figure holding the Ethics, gesturing toward the earth."},"notes":"","ramps":{"skin":{"light":"#FFDDA6","base":"#DAAA7B","shadow":"#895943"},"hair":{"light":"#A59472","base":"#7E684D","shadow":"#4F382B"},"outfitP":{"light":"#D6EBF7","base":"#9DADBD","shadow":"#5F6776"},"outfitS":{"light":"#AC976D","base":"#846747","shadow":"#533626"},"outfitT":{"light":"#FFDC97","base":"#DCB26B","shadow":"#8A5D37"}}};
+
+/* ── Colour maths (ported from src/fighter/palette) ──────────────────────── */
+const hexToRgb = (h) => {
+  const s = String(h).replace(/^#/, '');
+  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+};
+const rgbToHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('').toUpperCase();
+const isHex = (h) => /^#?[0-9a-fA-F]{6}$/.test(String(h).trim());
+
+function rgbToHsv([r, g, b]) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) {
+    if (mx === r) h = ((g - b) / d) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  return [h, mx ? d / mx : 0, mx];
+}
+function hsvToRgb([h, s, v]) {
+  const c = v * s, hh = ((((h % 360) + 360) % 360)) / 60, x = c * (1 - Math.abs((hh % 2) - 1));
+  const seg = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(hh) % 6];
+  const m = v - c;
+  return seg.map((n) => (n + m) * 255);
+}
+const lum = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
+function towardHue(h, t, amt) {
+  const d = ((t - h + 540) % 360) - 180;
+  const moved = h + Math.sign(d) * Math.min(Math.abs(d), amt);
+  return ((moved % 360) + 360) % 360;
+}
+const darken = (rgb, f) => { const [h, s, v] = rgbToHsv(rgb); return hsvToRgb([h, s, Math.max(0, Math.min(1, v * f))]); };
+const dist = (a, b) => { const dr = a[0] - b[0], dg = a[1] - b[1], db = a[2] - b[2]; return 2 * dr * dr + 4 * dg * dg + 3 * db * db; };
+
+const MATERIALS = [
+  { id: 'skin', base: 'skin.primary', shadow: 'skin.secondary' },
+  { id: 'hair', base: 'hair.primary', shadow: 'hair.secondary' },
+  { id: 'outfitP', base: 'outfit.primary', shadow: null },
+  { id: 'outfitS', base: 'outfit.secondary', shadow: null },
+  { id: 'outfitT', base: 'outfit.tertiary', shadow: null },
+];
+const getRole = (p, path) => path.split('.').reduce((n, k) => n?.[k], p);
+function setRole(p, path, v) {
+  const k = path.split('.');
+  if (k.length === 1) return { ...p, [k[0]]: v };
+  return { ...p, [k[0]]: { ...p[k[0]], [k[1]]: v } };
+}
+
+function buildRamp(baseHex, shadowHex, { spread = 1, valueBias = 0 } = {}) {
+  const [h, s, v] = rgbToHsv(hexToRgb(baseHex));
+  const bv = Math.max(0.05, Math.min(1, v * (1 + valueBias)));
+  const base = hsvToRgb([h, s, bv]);
+  const light = hsvToRgb([towardHue(h, 40, 8), Math.max(0, s * (1 - 0.12 * spread)), Math.min(1, bv * (1 + 0.18 * spread))]);
+  const shadow = shadowHex && spread === 1 && valueBias === 0
+    ? hexToRgb(shadowHex)
+    : hsvToRgb([towardHue(h, 225, 10), Math.min(1, s * (1 + 0.10 * spread)), bv * (1 - 0.22 * spread)]);
+  return [light, base, shadow];
+}
+function buildRamps(palette, boost) {
+  const bias = { skin: +0.06 * boost.separate, hair: -0.30 * boost.separate };
+  const out = {};
+  for (const m of MATERIALS) {
+    out[m.id] = buildRamp(getRole(palette, m.base), m.shadow ? getRole(palette, m.shadow) : null,
+      { spread: boost.spread, valueBias: bias[m.id] ?? 0 });
+  }
+  return out;
+}
+function deepenOutline(hex, ramps, gapWanted = 28, margin = 3) {
+  const darkest = Math.min(...Object.values(ramps).map((s) => lum(s[2])));
+  let rgb = hexToRgb(hex), guard = 0;
+  while (darkest - lum(rgb) < gapWanted + margin && guard < 40) { rgb = darken(rgb, 0.92); guard++; }
+  return rgbToHex(rgb);
+}
+
+/* A head has skin, hair, a collar and an edge. Offering it the chiton and the hem lets
+   those steal face pixels, which is what happened before this restriction existed. */
+const HEAD_MATERIALS = ['skin', 'hair', 'outfitP'];
+function targetsFor(palette, ramps, materials) {
+  const t = [];
+  for (const [id, stops] of Object.entries(ramps)) {
+    if (materials && !materials.includes(id)) continue;
+    stops.forEach((rgb) => t.push(rgb));
+  }
+  t.push(hexToRgb(palette.outline));
+  return t;
+}
+
+/* ── Skeleton, at the 1:4.5 proportions the game uses ────────────────────── */
+const NOMINAL = 340, HIP = 150;
+const BONES = [
+  ['root', null, 0, 0, 0], ['pelvis', 'root', 0, HIP, 0], ['torso', 'pelvis', 0, 8, 0],
+  ['chest', 'torso', 2, 56, 0], ['neck', 'chest', 4, 40, 0], ['head', 'neck', 2, 10, 0],
+  ['armB.up', 'chest', -6, 32, -95], ['armB.fore', 'armB.up', 46, 0, -15], ['handB', 'armB.fore', 40, 0, 0],
+  ['legB.thigh', 'pelvis', -10, -4, -92], ['legB.shin', 'legB.thigh', 76, 0, -6], ['footB', 'legB.shin', 70, 0, 92],
+  ['robeA', 'pelvis', 0, 4, -90], ['robeB', 'robeA', 77, 0, 0],
+  ['legF.thigh', 'pelvis', 8, -4, -88], ['legF.shin', 'legF.thigh', 76, 0, -4], ['footF', 'legF.shin', 70, 0, 88],
+  ['armF.up', 'chest', 10, 34, -75], ['armF.fore', 'armF.up', 46, 0, -20], ['handF', 'armF.fore', 40, 0, 0],
+];
+function solve() {
+  const pos = {}, ang = {};
+  for (const [id, par, px, py, rest] of BONES) {
+    const pa = par ? ang[par] : 0;
+    const r = pa * Math.PI / 180;
+    const b = par ? pos[par] : { x: 0, y: 0 };
+    pos[id] = { x: b.x + px * Math.cos(r) - py * Math.sin(r), y: b.y + px * Math.sin(r) + py * Math.cos(r) };
+    ang[id] = pa + rest;
+  }
+  return { pos, ang };
+}
+const SKELETON = solve();
+
+/* Limbs, drawn back-to-front. Far-side limbs take a darkened ramp for depth. */
+const LIMBS = [
+  ['armB.up', 'armB.fore', 22, 'skin', true], ['armB.fore', 'handB', 18, 'skin', true],
+  ['legB.thigh', 'legB.shin', 30, 'skin', true], ['legB.shin', 'footB', 23, 'skin', true],
+  ['pelvis', 'neck', 68, 'outfitS', false],
+  ['robeA', 'robeB', 62, 'outfitP', false],
+  ['legF.thigh', 'legF.shin', 32, 'skin', false], ['legF.shin', 'footF', 24, 'skin', false],
+  ['armF.up', 'armF.fore', 24, 'skin', false], ['armF.fore', 'handF', 19, 'skin', false],
+];
+
+/* ── State ────────────────────────────────────────────────────────────────── */
+const MEASURED = structuredClone(KIT.measured);
+let palette = structuredClone(KIT.palette);
+let boost = { spread: KIT.boost.spread, separate: KIT.boost.separate };
+
+const ROLES = [
+  { path: 'skin.primary', label: 'Skin base', group: 'Skin', hint: 'Cheek and forehead, mid-tone' },
+  { path: 'skin.secondary', label: 'Skin shadow', group: 'Skin', hint: 'Shadowed jaw, under the sleeve' },
+  { path: 'hair.primary', label: 'Hair base', group: 'Hair', hint: 'Beard and curls' },
+  { path: 'hair.secondary', label: 'Hair shadow', group: 'Hair', hint: 'Deep inside the curls' },
+  { path: 'outfit.primary', label: 'Outer garment', group: 'Outfit', hint: 'The blue himation' },
+  { path: 'outfit.secondary', label: 'Under garment', group: 'Outfit', hint: 'The olive chiton' },
+  { path: 'outfit.tertiary', label: 'Trim and hems', group: 'Outfit', hint: 'Gold clasp and embroidered hem' },
+  { path: 'outline', label: 'Outline', group: 'Other', hint: 'Deepened from the fresco’s own darks, never black' },
+  { path: 'accent', label: 'Leather and props', group: 'Other', hint: 'Sandal straps' },
+  { path: 'element', label: 'Elemental', group: 'Other', hint: 'Aether — chosen, not measured' },
+];
+const RAMP_OF = { 'skin.primary': 'skin', 'skin.secondary': 'skin', 'hair.primary': 'hair', 'hair.secondary': 'hair', 'outfit.primary': 'outfitP', 'outfit.secondary': 'outfitS', 'outfit.tertiary': 'outfitT' };
+
+/* ── Chips ────────────────────────────────────────────────────────────────── */
+const chipsEl = document.getElementById('chips');
+const fields = new Map();
+
+for (const group of ['Skin', 'Hair', 'Outfit', 'Other']) {
+  const section = document.createElement('div');
+  section.className = 'group';
+  const label = document.createElement('span');
+  label.className = 'eyebrow';
+  label.textContent = group;
+  section.appendChild(label);
+
+  for (const role of ROLES.filter((r) => r.group === group)) {
+    const row = document.createElement('div');
+    row.className = 'chip';
+
+    const well = document.createElement('div');
+    well.className = 'well';
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.setAttribute('aria-label', role.label);
+    well.appendChild(picker);
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('div');
+    name.className = 'role';
+    name.textContent = role.label;
+    const measured = document.createElement('div');
+    measured.className = 'measured';
+    meta.append(name, measured);
+
+    const ramp = document.createElement('div');
+    ramp.className = 'ramp';
+    const stops = [0, 1, 2].map(() => document.createElement('span'));
+    ramp.append(...stops);
+    if (RAMP_OF[role.path]) meta.appendChild(ramp);
+
+    const hex = document.createElement('input');
+    hex.className = 'hexfield';
+    hex.type = 'text';
+    hex.spellcheck = false;
+    hex.setAttribute('aria-label', role.label + ' hex value');
+
+    row.append(well, meta, hex);
+    section.appendChild(row);
+    fields.set(role.path, { picker, hex, measured, stops, role });
+
+    const commit = (value) => {
+      if (!isHex(value)) { hex.setAttribute('aria-invalid', 'true'); return; }
+      hex.removeAttribute('aria-invalid');
+      palette = setRole(palette, role.path, rgbToHex(hexToRgb(value)));
+      render();
+    };
+    picker.addEventListener('input', () => commit(picker.value));
+    hex.addEventListener('change', () => commit(hex.value));
+  }
+  chipsEl.appendChild(section);
+}
+
+/* ── Head, re-quantised live ──────────────────────────────────────────────── */
+const headCanvas = document.getElementById('head');
+const headCtx = headCanvas.getContext('2d');
+let rawHead = null;
+
+const img = new Image();
+img.onload = () => {
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const cx = c.getContext('2d', { willReadFrequently: true });
+  cx.drawImage(img, 0, 0);
+  rawHead = cx.getImageData(0, 0, img.width, img.height);
+  document.getElementById('headCaption').textContent = `head · ${img.width}×${img.height}`;
+  render();
+};
+img.src = RAW_HEAD;
+
+function quantiseHead(ramps) {
+  const targets = targetsFor(palette, ramps, HEAD_MATERIALS);
+  const w = rawHead.width, h = rawHead.height;
+  const src = rawHead.data;
+  const out = new Uint8ClampedArray(src.length);
+
+  for (let i = 0; i < src.length; i += 4) {
+    if (src[i + 3] < 110) continue;
+    const px = [src[i], src[i + 1], src[i + 2]];
+    let best = targets[0], bd = Infinity;
+    for (const t of targets) { const d = dist(px, t); if (d < bd) { bd = d; best = t; } }
+    out[i] = best[0]; out[i + 1] = best[1]; out[i + 2] = best[2]; out[i + 3] = 255;
+  }
+
+  // Despeckle: nearest-neighbour mapping of painted gradients scatters stray pixels.
+  const key = (a, j) => a[j] + ',' + a[j + 1] + ',' + a[j + 2];
+  for (let pass = 0; pass < 2; pass++) {
+    const prev = new Uint8ClampedArray(out);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (prev[i + 3] === 0) continue;
+      const mine = key(prev, i);
+      const counts = new Map();
+      let same = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = (ny * w + nx) * 4;
+        if (prev[j + 3] === 0) continue;
+        const k = key(prev, j);
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+        if (k === mine) same++;
+      }
+      if (same > 0) continue;
+      let win = null, n = 0;
+      for (const [k, c] of counts) if (c > n) { n = c; win = k; }
+      if (n < 3) continue;
+      const [r, g, b] = win.split(',').map(Number);
+      out[i] = r; out[i + 1] = g; out[i + 2] = b;
+    }
+  }
+
+  // Outline every pixel that meets transparency or the border.
+  const ol = hexToRgb(palette.outline);
+  const withEdge = new Uint8ClampedArray(out);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    if (out[i + 3] === 0) continue;
+    let edge = false;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) { edge = true; break; }
+      if (out[(ny * w + nx) * 4 + 3] === 0) { edge = true; break; }
+    }
+    if (edge) { withEdge[i] = ol[0]; withEdge[i + 1] = ol[1]; withEdge[i + 2] = ol[2]; }
+  }
+  return new ImageData(withEdge, w, h);
+}
+
+/* ── Figure ───────────────────────────────────────────────────────────────── */
+const figCanvas = document.getElementById('figure');
+const figCtx = figCanvas.getContext('2d');
+
+function drawFigure(ramps) {
+  const W = figCanvas.width, H = figCanvas.height;
+  figCtx.clearRect(0, 0, W, H);
+  const scale = (H * 0.94) / NOMINAL;
+  const ox = W / 2, oy = H * 0.97;
+  const S = (p) => ({ x: ox + p.x * scale, y: oy - p.y * scale });
+
+  figCtx.lineCap = 'round';
+  figCtx.lineJoin = 'round';
+
+  for (const [from, to, girth, mat, far] of LIMBS) {
+    const a = S(SKELETON.pos[from]), b = S(SKELETON.pos[to]);
+    const stops = far ? ramps[mat].map((c) => darken(c, 0.78)) : ramps[mat];
+    const w = girth * scale;
+
+    // Three tones along the limb, offset toward the light (upper-front).
+    const nx = -(b.y - a.y), ny = b.x - a.x;
+    const len = Math.hypot(nx, ny) || 1;
+    const ux = (nx / len), uy = (ny / len);
+
+    figCtx.strokeStyle = palette.outline;
+    figCtx.lineWidth = w + 2.5;
+    figCtx.beginPath(); figCtx.moveTo(a.x, a.y); figCtx.lineTo(b.x, b.y); figCtx.stroke();
+
+    figCtx.strokeStyle = rgbToHex(stops[2]);
+    figCtx.lineWidth = w;
+    figCtx.beginPath(); figCtx.moveTo(a.x, a.y); figCtx.lineTo(b.x, b.y); figCtx.stroke();
+
+    figCtx.strokeStyle = rgbToHex(stops[1]);
+    figCtx.lineWidth = w * 0.72;
+    figCtx.beginPath();
+    figCtx.moveTo(a.x + ux * w * 0.1, a.y + uy * w * 0.1);
+    figCtx.lineTo(b.x + ux * w * 0.1, b.y + uy * w * 0.1);
+    figCtx.stroke();
+
+    figCtx.strokeStyle = rgbToHex(stops[0]);
+    figCtx.lineWidth = w * 0.3;
+    figCtx.beginPath();
+    figCtx.moveTo(a.x + ux * w * 0.28, a.y + uy * w * 0.28);
+    figCtx.lineTo(b.x + ux * w * 0.28, b.y + uy * w * 0.28);
+    figCtx.stroke();
+  }
+
+  // The head sprite, seated on the neck joint by its bottom-centre pivot.
+  if (rawHead) {
+    const quant = quantiseHead(ramps);
+    const tmp = document.createElement('canvas');
+    tmp.width = quant.width; tmp.height = quant.height;
+    tmp.getContext('2d').putImageData(quant, 0, 0);
+    const neck = S(SKELETON.pos.head);
+    const hs = (76 * scale) / quant.height;
+    figCtx.imageSmoothingEnabled = false;
+    figCtx.drawImage(tmp, neck.x - (quant.width * hs) / 2, neck.y - quant.height * hs, quant.width * hs, quant.height * hs);
+  }
+}
+
+/* ── Render ───────────────────────────────────────────────────────────────── */
+const warnEl = document.getElementById('warn');
+const jsonEl = document.getElementById('json');
+
+function render() {
+  const ramps = buildRamps(palette, boost);
+
+  for (const [path, f] of fields) {
+    const value = getRole(palette, path);
+    f.picker.value = value.toLowerCase();
+    if (document.activeElement !== f.hex) f.hex.value = value;
+    f.hex.parentElement.querySelector('.well').style.background = value;
+    const m = getRole(MEASURED, path);
+    f.measured.innerHTML = m === value
+      ? `measured <b>${m}</b>`
+      : `measured <b>${m}</b> → <b>${value}</b>`;
+    const id = RAMP_OF[path];
+    if (id) f.stops.forEach((s, i) => { s.style.background = rgbToHex(ramps[id][i]); });
+  }
+
+  if (rawHead) {
+    const quant = quantiseHead(ramps);
+    const tmp = document.createElement('canvas');
+    tmp.width = quant.width; tmp.height = quant.height;
+    tmp.getContext('2d').putImageData(quant, 0, 0);
+    headCtx.clearRect(0, 0, headCanvas.width, headCanvas.height);
+    headCtx.imageSmoothingEnabled = false;
+    const s = Math.min(headCanvas.width / quant.width, headCanvas.height / quant.height);
+    headCtx.drawImage(tmp, (headCanvas.width - quant.width * s) / 2, headCanvas.height - quant.height * s, quant.width * s, quant.height * s);
+  }
+  drawFigure(ramps);
+
+  // Warn on the two failures that actually ruin a sprite.
+  const problems = [];
+  const gap = Math.abs(lum(ramps.skin[1]) - lum(ramps.hair[1]));
+  if (gap < 40) problems.push(`skin and hair only ${gap.toFixed(0)} luma apart — the face will blend`);
+  const darkest = Math.min(...Object.values(ramps).map((s) => lum(s[2])));
+  const olGap = darkest - lum(hexToRgb(palette.outline));
+  if (olGap < 28) {
+    problems.push(olGap < 0
+      ? `outline is ${(-olGap).toFixed(0)} luma LIGHTER than the darkest shadow — the silhouette will not read`
+      : `outline only ${olGap.toFixed(0)} luma below the darkest shadow — the silhouette will not read`);
+  }
+  warnEl.textContent = problems.join(' · ');
+
+  jsonEl.textContent = JSON.stringify(exportKit(), null, 2);
+}
+
+function exportKit() {
+  const ramps = buildRamps(palette, boost);
+  const out = structuredClone(KIT);
+  out.palette = structuredClone(palette);
+  out.measured = structuredClone(MEASURED);
+  out.boost = { ...boost };
+  out.ramps = Object.fromEntries(Object.entries(ramps).map(([id, s]) => [id, { light: rgbToHex(s[0]), base: rgbToHex(s[1]), shadow: rgbToHex(s[2]) }]));
+  return { format: 'mews.kits', version: 1, sheet: KIT.sheet ?? 'heads.sheet.png', sheetSize: KIT.sheetSize, characters: [out] };
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+for (const [id, key] of [['spread', 'spread'], ['separate', 'separate']]) {
+  const input = document.getElementById(id);
+  const out = document.getElementById(id + 'Out');
+  input.value = boost[key];
+  out.textContent = Number(boost[key]).toFixed(2);
+  input.addEventListener('input', () => {
+    boost[key] = Number(input.value);
+    out.textContent = boost[key].toFixed(2);
+    // Re-derive the outline: the deepening depends on the darkest shadow, which moves.
+    palette.outline = deepenOutline(MEASURED.outline, buildRamps(palette, boost));
+    render();
+  });
+}
+
+document.getElementById('reset').addEventListener('click', () => {
+  palette = structuredClone(MEASURED);
+  boost = { spread: 1, separate: 0 };
+  document.getElementById('spread').value = 1;
+  document.getElementById('separate').value = 0;
+  document.getElementById('spreadOut').textContent = '1.00';
+  document.getElementById('separateOut').textContent = '0.00';
+  render();
+});
+
+document.getElementById('copy').addEventListener('click', async (e) => {
+  const text = JSON.stringify(exportKit(), null, 2);
+  try {
+    await navigator.clipboard.writeText(text);
+    e.target.textContent = 'Copied';
+  } catch {
+    e.target.textContent = 'Copy blocked — use Download';
+  }
+  setTimeout(() => { e.target.textContent = 'Copy kit JSON'; }, 1800);
+});
+
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(exportKit(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'kits.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+render();
+</script>
