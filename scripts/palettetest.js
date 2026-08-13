@@ -16,15 +16,19 @@ import {
 } from '../src/fighter/palette/paletteSchema.js';
 import {
   buildRamp, buildRamps, depthRamps, quantisationTargets, checkRamps, rampsToHex,
-  deepenOutline, SPRITE_MATERIALS, DEPTH_FACTOR,
+  deepenOutline, separationFor, SPRITE_MATERIALS, DEPTH_FACTOR, MIN_SKIN_HAIR_GAP,
 } from '../src/fighter/palette/ramp.js';
+import {
+  regionCdf, bandFor, bandsFor, remapByRegion, assignRegionIds,
+  CARVED_BANDS, SMOOTH_BANDS, DEFAULT_BANDS,
+} from '../src/fighter/palette/shapeMap.js';
 import {
   createKit, createKitsDocument, upsertKit, findKit, validateKits, findSheetOverlaps,
   ACCESSORY_KINDS,
 } from '../src/fighter/palette/kitSchema.js';
 import { packSheet, placementMap } from '../src/fighter/palette/sheetPack.js';
 import { DEFAULT_SKELETON } from '../src/fighter/rig/rigSchema.js';
-import { RECIPES } from '../art/recipes.js';
+import { RECIPES, resolveRecipe } from '../art/recipes.js';
 import {
   createImage, cloneImage, maskBackground, quantiseToTargets, despeckle,
   addOutline, opaqueBounds, cropImage, spriteify,
@@ -504,42 +508,277 @@ check('sheet dimensions are powers of two', (() => {
   return isPow2(packed.width) && isPow2(packed.height);
 })());
 
+/* ── Adaptive separation ──────────────────────────────────────────────────── */
+
+// `separate` rescues a palette whose skin and hair collide and ruins one whose do not,
+// so how much to apply is a property of the palette rather than a constant.
+check('a collided palette asks for full separation', separationFor('#807060', '#7E6E5E') > 0.9);
+check('a palette that already clears the gap asks for none',
+  separationFor('#E8C8A8', '#2A2018') === 0);
+check('separation falls as the measured gap widens', (() => {
+  const tight = separationFor('#CEA074', '#B4946E');
+  const loose = separationFor('#CEA074', '#6A5038');
+  return tight > loose && loose >= 0;
+})());
+check('separation is quantised, so the build stays reproducible',
+  Number.isInteger(Math.round(separationFor('#CEA074', '#B4946E') * 100)));
+check('separation is symmetric in its arguments',
+  separationFor('#CEA074', '#B4946E') === separationFor('#B4946E', '#CEA074'));
+check('a palette separated by the prescribed amount passes the gap check', (() => {
+  const p = createPalette({ skin: { primary: '#CEA074', secondary: '#B1926D' }, hair: { primary: '#B4946E', secondary: '#A38869' } });
+  const boosted = buildRamps(p, { ...DEFAULT_BOOST, separate: separationFor(p.skin.primary, p.hair.primary) });
+  return Math.abs(luminance(boosted.skin[1]) - luminance(boosted.hair[1])) >= MIN_SKIN_HAIR_GAP;
+})());
+
+/* ── Shape mapping ────────────────────────────────────────────────────────── */
+
+check('carved surfaces get an outline band and smooth ones do not',
+  CARVED_BANDS.some((b) => b.stop === 'outline') && !SMOOTH_BANDS.some((b) => b.stop === 'outline'));
+check('hair is treated as carved, anything else as smooth',
+  bandsFor('hair', DEFAULT_BANDS) === CARVED_BANDS && bandsFor('outfitP', DEFAULT_BANDS) === SMOOTH_BANDS);
+check('bands are ordered and cover the whole range', CARVED_BANDS.every(
+  (b, i) => i === 0 || b.upTo > CARVED_BANDS[i - 1].upTo,
+) && CARVED_BANDS[CARVED_BANDS.length - 1].upTo === Infinity);
+check('bandFor picks by rank', bandFor(0, CARVED_BANDS) === 'outline'
+  && bandFor(0.5, CARVED_BANDS) === 'base' && bandFor(1, CARVED_BANDS) === 'light');
+
+/** A gradient strip: one row, luminance climbing left to right. */
+const gradient = (n) => {
+  const img = createImage(n, 1);
+  for (let i = 0; i < n; i++) {
+    const v = Math.round((i / (n - 1)) * 255);
+    img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+  }
+  return img;
+};
+
+check('a region cdf spans zero to one', (() => {
+  const img = gradient(64);
+  const d = regionCdf(img, new Array(64).fill(1), 1);
+  return d.pixels === 64 && d.cdf[d.lo] < 0.05 && d.cdf[d.hi] > 0.95;
+})());
+check('an empty region reports nothing rather than dividing by zero',
+  regionCdf(gradient(8), new Array(8).fill(1), 7) === null);
+check('transparent pixels stay out of the distribution', (() => {
+  const img = gradient(64);
+  for (let i = 0; i < 32; i++) img.data[i * 4 + 3] = 0;
+  return regionCdf(img, new Array(64).fill(1), 1).pixels === 32;
+})());
+// The whole reason for equalising by rank: a bottom-heavy histogram must still spend
+// the full ramp, which a fixed luminance split cannot do.
+check('a bottom-heavy region still reaches the light stop', (() => {
+  const img = createImage(100, 1);
+  for (let i = 0; i < 100; i++) {
+    const v = i < 90 ? 10 + i : 200; // ninety dark pixels, ten bright
+    img.data[i * 4] = v; img.data[i * 4 + 1] = v; img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+  }
+  const { stats } = remapByRegion(img, new Array(100).fill(1), {
+    regions: { 1: 'hair' }, ramps, outline: [0, 0, 0],
+  });
+  return stats[0].counts.light > 15 && stats[0].counts.outline > 5;
+})());
+check('a region of one flat luminance does not all become the lightest stop', (() => {
+  const img = createImage(40, 1);
+  for (let i = 0; i < 40; i++) {
+    img.data[i * 4] = 90; img.data[i * 4 + 1] = 90; img.data[i * 4 + 2] = 90; img.data[i * 4 + 3] = 255;
+  }
+  const { stats } = remapByRegion(img, new Array(40).fill(1), {
+    regions: { 1: 'skin' }, ramps, outline: [0, 0, 0],
+  });
+  return stats[0].counts.base === 40;
+})());
+
+check('remapping repaints only its own region', (() => {
+  const img = gradient(8);
+  const map = [1, 1, 1, 1, 0, 0, 0, 0];
+  const { image } = remapByRegion(img, map, { regions: { 1: 'skin' }, ramps, outline: [0, 0, 0] });
+  const untouched = [4, 5, 6, 7].every((i) => image.data[i * 4] === img.data[i * 4]);
+  const stops = new Set(ramps.skin.map((s) => Math.round(s[0])));
+  const repainted = [0, 1, 2, 3].every((i) => stops.has(image.data[i * 4]));
+  return untouched && repainted;
+})());
+check('remapping leaves the source image alone', (() => {
+  const img = gradient(8);
+  const before = [...img.data];
+  remapByRegion(img, new Array(8).fill(1), { regions: { 1: 'skin' }, ramps, outline: [0, 0, 0] });
+  return before.every((v, i) => v === img.data[i]);
+})());
+check('every remapped pixel lands on a ramp stop or the outline', (() => {
+  const img = gradient(64);
+  const { image } = remapByRegion(img, new Array(64).fill(1), {
+    regions: { 1: 'hair' }, ramps, outline: [7, 7, 7],
+  });
+  const allowed = new Set([...ramps.hair.map((s) => s.map(Math.round).join()), '7,7,7']);
+  for (let i = 0; i < 64; i++) {
+    if (!allowed.has([image.data[i * 4], image.data[i * 4 + 1], image.data[i * 4 + 2]].join())) return false;
+  }
+  return true;
+})());
+check('a material with no ramp is reported rather than silently skipped', (() => {
+  const { stats } = remapByRegion(gradient(8), new Array(8).fill(1), {
+    regions: { 1: 'lapis' }, ramps, outline: [0, 0, 0],
+  });
+  return stats[0].error?.includes('lapis');
+})());
+check('a region traced where the figure is not is reported', (() => {
+  const { stats } = remapByRegion(gradient(8), new Array(8).fill(1), {
+    regions: { 2: 'skin' }, ramps, outline: [0, 0, 0],
+  });
+  return stats[0].error?.includes('empty');
+})());
+
+check('the base material takes id 1', assignRegionIds({ base: 'hair', skin: [[[0, 0]]] }).ids[1] === 'hair');
+check('traced materials take ids above the base', (() => {
+  const { ids, polygons } = assignRegionIds({ base: 'hair', skin: [[[0, 0]]], outfitP: [[[1, 1]]] });
+  return ids[2] === 'outfitP' && ids[3] === 'skin' && polygons.length === 2;
+})());
+// Ids that depend on object iteration order are exactly how a reproducible build stops
+// being reproducible, so they are assigned in sorted key order.
+check('region ids do not depend on key order', (() => {
+  const a = assignRegionIds({ base: 'hair', skin: [[[0, 0]]], outfitP: [[[1, 1]]] });
+  const b = assignRegionIds({ outfitP: [[[1, 1]]], base: 'hair', skin: [[[0, 0]]] });
+  return JSON.stringify(a.ids) === JSON.stringify(b.ids);
+})());
+check('every polygon carries the id of its material', (() => {
+  const { ids, polygons } = assignRegionIds({ base: 'hair', skin: [[[0, 0]], [[2, 2]]] });
+  return polygons.length === 2 && polygons.every((p) => ids[p.id] === 'skin');
+})());
+
+/* ── Background removal against a named colour ────────────────────────────── */
+
+/** A dark blob on a warm-cream field, the shape of a museum photograph. */
+const onCream = () => {
+  const img = createImage(9, 9);
+  for (let i = 0; i < 81; i++) {
+    const x = i % 9, y = (i / 9) | 0;
+    const inside = x >= 3 && x <= 5 && y >= 3 && y <= 5;
+    const rgb = inside ? [48, 52, 50] : [205, 202, 182];
+    img.data[i * 4] = rgb[0]; img.data[i * 4 + 1] = rgb[1]; img.data[i * 4 + 2] = rgb[2]; img.data[i * 4 + 3] = 255;
+  }
+  return img;
+};
+
+// A gallery cream sits below any brightness threshold a lit forehead would survive.
+check('the brightness test misses a warm-cream backdrop',
+  maskBackground(onCream()).data[3] === 255);
+check('a named backdrop colour clears it', (() => {
+  const out = maskBackground(onCream(), { near: { rgb: '#CDCAB6', tolerance: 55 } });
+  return out.data[3] === 0 && out.data[(4 * 9 + 4) * 4 + 3] === 255;
+})());
+check('a named backdrop colour spares the figure', (() => {
+  const out = maskBackground(onCream(), { near: { rgb: '#CDCAB6', tolerance: 55 } });
+  let opaque = 0;
+  for (let i = 0; i < 81; i++) if (out.data[i * 4 + 3] === 255) opaque++;
+  return opaque === 9;
+})());
+// A traced silhouette and the flood fill have to compose: the polygon clears the outside,
+// and the fill must reach through that to the backdrop the polygon left loose.
+check('the fill reaches through already-transparent pixels', (() => {
+  const img = onCream();
+  // Stand in for the polygon clip: clear the border ring the way a traced mask would.
+  for (let i = 0; i < 81; i++) {
+    const x = i % 9, y = (i / 9) | 0;
+    if (x === 0 || y === 0 || x === 8 || y === 8) img.data[i * 4 + 3] = 0;
+  }
+  const out = maskBackground(img, { near: { rgb: '#CDCAB6', tolerance: 55 } });
+  return out.data[(2 * 9 + 2) * 4 + 3] === 0 && out.data[(4 * 9 + 4) * 4 + 3] === 255;
+})());
+
+check('preQuantise runs between masking and quantisation', (() => {
+  const img = onCream();
+  let sawMaskedInput = false;
+  spriteify(img, quantisationTargets(palette, DEFAULT_BOOST), palette.outline, {
+    mask: { near: { rgb: '#CDCAB6', tolerance: 55 } },
+    preQuantise: (masked) => { sawMaskedInput = masked.data[3] === 0; return masked; },
+  });
+  return sawMaskedInput;
+})());
+
 /* ── Recipes ──────────────────────────────────────────────────────────────── */
 
 // The recipes are hand-authored coordinates, which is exactly the kind of data that
 // rots silently. These checks are cheap and catch a fat-fingered box before a build.
-check('every recipe has an id, a name and a source file', RECIPES.every(
-  (r) => r.id && r.name && r.source?.file && r.source?.license,
-));
+// They run against the RESOLVED form, so a one-source and a two-source recipe are held
+// to the same contract without the tests having to know which is which.
+const RESOLVED = RECIPES.map((r) => ({ recipe: r, ...resolveRecipe(r) }));
+
+const MEASURABLE_ROLES = ['skin.primary', 'skin.secondary', 'hair.primary', 'hair.secondary',
+  'outfit.primary', 'outfit.secondary', 'outfit.tertiary', 'accent'];
+
+check('every recipe has an id and a name', RECIPES.every((r) => r.id && r.name));
 check('recipe ids are unique', new Set(RECIPES.map((r) => r.id)).size === RECIPES.length);
-check('every head crop is [x, y, w, h] with positive size', RECIPES.every(
-  (r) => Array.isArray(r.head?.crop) && r.head.crop.length === 4
-    && r.head.crop.every(Number.isFinite) && r.head.crop[2] > 0 && r.head.crop[3] > 0,
+// The licence obligation follows the pixels that ship, which are the shape source's.
+check('every shape source names a file and a licence', RESOLVED.every(
+  ({ shape }) => shape.file && shape.provenance?.license,
 ));
-check('every sample box is [x, y, w, h] with positive size', RECIPES.every(
-  (r) => Object.values(r.samples).every(
-    (boxes) => boxes.every((b) => b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0),
+check('every head crop is [x, y, w, h] with positive size', RESOLVED.every(
+  ({ shape }) => Array.isArray(shape.crop) && shape.crop.length === 4
+    && shape.crop.every(Number.isFinite) && shape.crop[2] > 0 && shape.crop[3] > 0,
+));
+check('every measured recipe samples all eight roles, in well-formed boxes', RESOLVED.every(
+  ({ colour }) => !colour.measured || MEASURABLE_ROLES.every(
+    (k) => colour.samples[k]?.length
+      && colour.samples[k].every((b) => b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0),
   ),
 ));
-check('every recipe samples all eight measurable roles', RECIPES.every(
-  (r) => ['skin.primary', 'skin.secondary', 'hair.primary', 'hair.secondary',
-    'outfit.primary', 'outfit.secondary', 'outfit.tertiary', 'accent'].every((k) => r.samples[k]?.length),
+check('every measured recipe has a well-formed outline box', RESOLVED.every(
+  ({ colour }) => !colour.measured
+    || (Array.isArray(colour.outlineFrom) && colour.outlineFrom.length === 4 && colour.outlineFrom[2] > 0),
 ));
-check('every traced silhouette is a real polygon', RECIPES.every(
-  (r) => !r.head.mask || (r.head.mask.length >= 3 && r.head.mask.every((pt) => pt.length === 2 && pt.every(Number.isFinite))),
+// A provisional palette has to stand in for a measured one everywhere, outline included —
+// there is no darkest-2% pass to fall back on when nothing was sampled.
+check('every provisional palette sets all eight roles plus an outline', RESOLVED.every(
+  ({ colour }) => colour.measured
+    || [...MEASURABLE_ROLES, 'outline'].every((k) => {
+      try { hexToRgb(colour.values[k]); return true; } catch { return false; }
+    }),
+));
+check('every provisional palette records what to measure it from', RESOLVED.every(
+  ({ colour }) => colour.measured || (typeof colour.after === 'string' && colour.after.length > 0),
+));
+check('every traced silhouette is a real polygon', RESOLVED.every(
+  ({ shape }) => !shape.mask
+    || (shape.mask.length >= 3 && shape.mask.every((pt) => pt.length === 2 && pt.every(Number.isFinite))),
 ));
 // A mask outside its crop clips to nothing and yields an empty sprite.
-check('every silhouette lies inside its crop', RECIPES.every((r) => {
-  if (!r.head.mask) return true;
-  const [cx, cy, cw, ch] = r.head.crop;
-  return r.head.mask.some(([x, y]) => x >= cx && x <= cx + cw && y >= cy && y <= cy + ch);
+check('every silhouette lies inside its crop', RESOLVED.every(({ shape }) => {
+  if (!shape.mask) return true;
+  const [cx, cy, cw, ch] = shape.crop;
+  return shape.mask.some(([x, y]) => x >= cx && x <= cx + cw && y >= cy && y <= cy + ch);
 }));
-check('every outline box is well formed', RECIPES.every(
-  (r) => Array.isArray(r.outlineFrom) && r.outlineFrom.length === 4 && r.outlineFrom[2] > 0,
-));
 check('every element colour is a hex value', RECIPES.every((r) => {
   if (!r.element_color) return true;
   try { hexToRgb(r.element_color); return true; } catch { return false; }
+}));
+
+// Traced regions are the part of a two-source recipe with no visual feedback until the
+// build runs, so the structural mistakes are worth catching here.
+check('every region block names a base material and only known materials', RESOLVED.every(
+  ({ shape }) => !shape.regions || (
+    MATERIALS.some((m) => m.id === shape.regions.base)
+    && Object.keys(shape.regions).filter((k) => k !== 'base')
+      .every((k) => MATERIALS.some((m) => m.id === k))
+  ),
+));
+check('every traced region is a list of real polygons', RESOLVED.every(
+  ({ shape }) => !shape.regions || Object.entries(shape.regions)
+    .filter(([k]) => k !== 'base')
+    .every(([, polys]) => Array.isArray(polys) && polys.length > 0 && polys.every(
+      (p) => p.length >= 3 && p.every((pt) => pt.length === 2 && pt.every(Number.isFinite)),
+    )),
+));
+// A region traced outside the crop paints nothing, and the material it stood for
+// silently disappears into the base.
+check('every traced region overlaps its crop', RESOLVED.every(({ shape }) => {
+  if (!shape.regions) return true;
+  const [cx, cy, cw, ch] = shape.crop;
+  return Object.entries(shape.regions).filter(([k]) => k !== 'base').every(([, polys]) => polys.every(
+    (p) => p.some(([x, y]) => x >= cx && x <= cx + cw && y >= cy && y <= cy + ch),
+  ));
+}));
+check('a recipe that traces regions also names its backdrop colour', RESOLVED.every(({ shape }) => {
+  if (!shape.regions) return true;
+  try { hexToRgb(shape.background.rgb); return shape.background.tolerance > 0; } catch { return false; }
 }));
 
 /* ── Report ───────────────────────────────────────────────────────────────── */

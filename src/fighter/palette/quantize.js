@@ -11,6 +11,9 @@
 
 import { colorDistance, hexToRgb } from './color';
 
+/** Default "is this the wall behind him" test: bright in every channel. */
+const BRIGHT = { threshold: 214, blueThreshold: 200 };
+
 /** A blank image buffer of the given size. */
 export function createImage(width, height) {
   return { width, height, data: new Uint8ClampedArray(width * height * 4) };
@@ -28,11 +31,28 @@ export function cloneImage(img) {
  * the wall was the single largest colour in the sprite until it was removed. Flood
  * fill from the border rather than thresholding globally, so a pale forehead in the
  * middle of the face is never mistaken for background.
+ *
+ * `near: { rgb, tolerance }` swaps the brightness test for a distance-to-a-named-colour
+ * test. A gallery backdrop is often a warm cream well under any sensible brightness
+ * threshold — the bronze bust sits on #CDCAB6 — and no threshold that catches it is
+ * safe against a lit forehead.
+ *
+ * Already-transparent pixels count as background and are traversable, so a hand-traced
+ * silhouette and this flood fill compose: the polygon clears everything outside the
+ * figure, and the fill then reaches through that cleared ring to eat the backdrop the
+ * polygon deliberately left loose around the hair.
  */
-export function maskBackground(img, { threshold = 214, blueThreshold = 200 } = {}) {
+export function maskBackground(img, { threshold = BRIGHT.threshold, blueThreshold = BRIGHT.blueThreshold, near = null } = {}) {
   const out = cloneImage(img);
   const { width, height, data } = out;
-  const isBackground = (i) => data[i] > threshold && data[i + 1] > threshold && data[i + 2] > blueThreshold;
+  const nearRgb = near ? (typeof near.rgb === 'string' ? hexToRgb(near.rgb) : near.rgb) : null;
+  const nearTol = near?.tolerance ?? 60;
+  const isBackground = (i) => (
+    data[i + 3] === 0
+    || (nearRgb
+      ? colorDistance([data[i], data[i + 1], data[i + 2]], nearRgb) < nearTol
+      : data[i] > threshold && data[i + 1] > threshold && data[i + 2] > blueThreshold)
+  );
 
   const seen = new Uint8Array(width * height);
   const stack = [];
@@ -220,10 +240,16 @@ export function cropImage(img, { x, y, width, height }) {
 /**
  * The whole reduction, in the one order that works.
  * `img` should already be downsampled to the target sprite size.
+ *
+ * `preQuantise` runs between masking and quantisation, which is the only place a
+ * monochrome source can be repainted into palette colours: the backdrop has to be gone
+ * before its luminance is allowed into a region's range, and the repaint has to happen
+ * before the quantiser decides which target each pixel is nearest.
  */
 export function spriteify(img, targets, outlineHex, options = {}) {
   const masked = options.skipMask ? img : maskBackground(img, options.mask);
-  const { image, usage } = quantiseToTargets(masked, targets, options);
+  const prepared = options.preQuantise ? options.preQuantise(masked) : masked;
+  const { image, usage } = quantiseToTargets(prepared, targets, options);
   const cleaned = despeckle(image, options.despeckle);
   const outlined = addOutline(cleaned, outlineHex);
   return { image: outlined, usage };

@@ -22,6 +22,30 @@ const COOL_HUE = 225;
 export const DEPTH_FACTOR = 0.78;
 
 /**
+ * How far apart skin and hair have to sit before they stop blending at sprite size.
+ *
+ * Exported because two things need to agree about it: the check that reports a head as
+ * mush, and the rule that decides how hard to push the two apart in the first place.
+ */
+export const MIN_SKIN_HAIR_GAP = 40;
+
+/**
+ * How much separation a palette needs, given how much it already has.
+ *
+ * `separate` drops hair by up to a third of its value, which rescues a faded fresco
+ * where skin and hair were painted almost the same tone — Aristotle's differ by 16 luma
+ * — and ruins anything that arrived with real contrast. A bust-derived head is mostly
+ * hair, so darkening it unconditionally turns three quarters of the sprite black.
+ *
+ * So: apply exactly as much as the gap is short by, and none at all once it is met.
+ * Rounded, because the build has to be reproducible to the byte.
+ */
+export function separationFor(skinHex, hairHex, target = MIN_SKIN_HAIR_GAP) {
+  const gap = Math.abs(luminance(hexToRgb(skinHex)) - luminance(hexToRgb(hairHex)));
+  return Math.round(Math.max(0, Math.min(1, (target - gap) / target)) * 100) / 100;
+}
+
+/**
  * Build a [light, base, shadow] ramp from one base colour.
  *
  * `boost.spread` widens the ramp around its base. `boost.separate` biases the base
@@ -161,7 +185,7 @@ export function rampsToHex(ramps) {
  * Sanity checks on derived ramps: each must descend in luminance from light to
  * shadow, and skin must stay clear of hair or the head turns to mush at sprite size.
  */
-export function checkRamps(ramps, { minSkinHairGap = 40, outline = null, minOutlineGap = 28 } = {}) {
+export function checkRamps(ramps, { minSkinHairGap = MIN_SKIN_HAIR_GAP, outline = null, minOutlineGap = 28 } = {}) {
   const problems = [];
 
   // "Darker than the bases" is not the same as "dark enough to read as an edge". A

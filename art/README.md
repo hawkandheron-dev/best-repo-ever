@@ -17,21 +17,67 @@ public/philosophers/heads.sheet.png  packed quantised head sprites
 | Adjusting the palette by eye | `editor/pigment-card.html` | Needs a human eye and instant feedback |
 | Playing the character | the app | Deferred: kit import is not built yet |
 
+## Two sources: bust for the shape, painting for the colour
+
+The roster's binding constraint is not "is he in the painting" but **"is his face
+upright, in profile, and lit"**. Aristotle passes. Pythagoras does not — Raphael painted
+him bent over his writing, so the face is foreshortened, turned away and in shadow, and
+no crop, rotation or mask puts a profile there.
+
+So a recipe may take its geometry from one image and its colour from another:
+
+| | comes from | because |
+|---|---|---|
+| **Shape** — silhouette, profile, the carving | a Roman or Hellenistic **bust** | Sculpture gives a clean lit profile and nothing but head, which is all a kit needs |
+| **Colour** — ten palette roles, accessory ideas | the **painting** | A bust is one hue from crown to beard. The painting is a reading of what these people wore |
+
+A bronze quantised straight against a painted palette maps the whole head onto whichever
+material happens to sit nearest that green-black. So the bust is treated as a **height
+field** instead: regions are traced by hand — this is hair, this is face — and inside
+each one the sculpture's own luminance is posterised onto that material's ramp, by rank
+rather than by value. Deep carving becomes outline, mid-tones the base, polished ridges
+the light stop. See `src/fighter/palette/shapeMap.js`.
+
+The painting keeps earning its place even when none of its pixels ship. Heraclitus wears
+**boots** in the School of Athens when everyone around him is barefoot — a bust could
+never tell you that, and on a roster of near-identical draped Greeks it is exactly the
+sort of detail that tells two of them apart.
+
 ## Adding a philosopher
 
 1. Put the cropped source in `sources/`. Crop tightly — a crop of a crowded fresco
    contains the neighbours, and a sample box that strays picks up someone else's robe.
 2. Add a recipe to `recipes.js`: sample patches per role, an outline box, a head crop.
+   If the face is not usable, add a `shape` block pointing at a bust instead, with a
+   traced silhouette, its backdrop colour, and the material regions.
 3. `npm run buildkit -- --verbose` and read the warnings. A patch spread above ~90
    straddled an edge; move the box rather than trusting the value.
 4. Open `editor/pigment-card.html` to adjust by eye, then export.
+
+### Tracing a bust
+
+The polygons are read off the source by eye, which is fiddly but only has to happen once
+per character. What actually matters:
+
+- The **silhouette** can be loose wherever it runs through the backdrop — the flood fill
+  clears that. It has to be tight in exactly the places where the head meets more bronze:
+  the back of the neck and, on a long-bearded figure, the beard against the chest. No
+  colour test can find those junctions.
+- **Cut the neck short.** A generous neck is a large pale slab next to a small face, and
+  at 49 px it competes with the head instead of supporting it.
+- The **backdrop colour** has to be named, not thresholded. A gallery cream sits well
+  below any brightness cutoff that a lit forehead would survive.
 
 Two things the build will tell you and you should believe:
 
 - **A colour swallowing over half a sprite** means the crop or the background mask is
   wrong, not that the painting is unusual.
 - **Skin and hair within 40 luma** means the face will read as mush at sprite size.
-  Frescoes are faded; that is what the boost is for.
+  Frescoes are faded; that is what the boost is for. How hard it pushes is prescribed by
+  the palette rather than fixed — a character who arrived with contrast keeps it, because
+  darkening hair unconditionally turns a bust-derived head, which is mostly hair, black.
+- **A PROVISIONAL palette** means nothing was measured and every role is a guess. It is
+  reported on every build until a colour source is supplied.
 
 ## What gets cut, and what does not
 

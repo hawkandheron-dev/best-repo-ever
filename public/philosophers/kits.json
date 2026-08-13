@@ -52,11 +52,11 @@
       },
       "boost": {
         "spread": 1.7,
-        "separate": 1
+        "separate": 0.61
       },
       "head": {
         "region": [
-          1,
+          40,
           1,
           37,
           46
@@ -76,17 +76,18 @@
         "license": "public-domain",
         "note": "Central figure holding the Ethics, gesturing toward the earth."
       },
+      "paletteSource": null,
       "notes": "",
       "ramps": {
         "skin": {
           "light": "#FFDDA6",
-          "base": "#DAAA7B",
-          "shadow": "#895943"
+          "base": "#D6A678",
+          "shadow": "#865741"
         },
         "hair": {
-          "light": "#A59472",
-          "base": "#7E684D",
-          "shadow": "#4F382B"
+          "light": "#C0AC85",
+          "base": "#93795A",
+          "shadow": "#5C4232"
         },
         "outfitP": {
           "light": "#D6EBF7",
@@ -126,7 +127,7 @@
           "secondary": "#D2D2C4",
           "tertiary": "#743E1E"
         },
-        "outline": "#030201",
+        "outline": "#070402",
         "accent": "#9E8E6C",
         "element": "#3FA9A0"
       },
@@ -150,11 +151,11 @@
       },
       "boost": {
         "spread": 1.7,
-        "separate": 1
+        "separate": 0
       },
       "head": {
         "region": [
-          39,
+          78,
           1,
           33,
           45
@@ -174,17 +175,18 @@
         "license": "public-domain",
         "note": "Figure 6 in the standard identification key. Seated, writing, with a slate held for him."
       },
+      "paletteSource": null,
       "notes": "Head unusable — figure is bowed over his writing. Palette is good; wants a bust for the face.",
       "ramps": {
         "skin": {
           "light": "#FFE4AD",
-          "base": "#DBB282",
-          "shadow": "#896048"
+          "base": "#CFA87B",
+          "shadow": "#825B44"
         },
         "hair": {
-          "light": "#605036",
-          "base": "#4A3421",
-          "shadow": "#2E1A10"
+          "light": "#89724D",
+          "base": "#694B2F",
+          "shadow": "#422517"
         },
         "outfitP": {
           "light": "#FFE4BD",
@@ -200,6 +202,105 @@
           "light": "#976B3E",
           "base": "#743E1E",
           "shadow": "#49170A"
+        }
+      }
+    },
+    {
+      "id": "heraclitus",
+      "name": "Heraclitus",
+      "epithet": "The Obscure",
+      "school": "presocratic",
+      "doctrine": "Everything flows",
+      "element": "fire",
+      "palette": {
+        "skin": {
+          "primary": "#C08A62",
+          "secondary": "#9A6B4C"
+        },
+        "hair": {
+          "primary": "#5A4536",
+          "secondary": "#3D2E24"
+        },
+        "outfit": {
+          "primary": "#6B4E7A",
+          "secondary": "#C9C2B4",
+          "tertiary": "#A85B2E"
+        },
+        "outline": "#0C0908",
+        "accent": "#8A6A44",
+        "element": "#E8622A"
+      },
+      "measured": {
+        "skin": {
+          "primary": "#C08A62",
+          "secondary": "#9A6B4C"
+        },
+        "hair": {
+          "primary": "#5A4536",
+          "secondary": "#3D2E24"
+        },
+        "outfit": {
+          "primary": "#6B4E7A",
+          "secondary": "#C9C2B4",
+          "tertiary": "#A85B2E"
+        },
+        "outline": "#241C18",
+        "accent": "#8A6A44",
+        "element": "#E8622A"
+      },
+      "boost": {
+        "spread": 1.7,
+        "separate": 0
+      },
+      "head": {
+        "region": [
+          1,
+          1,
+          38,
+          48
+        ],
+        "pivot": [
+          19,
+          48
+        ]
+      },
+      "garment": null,
+      "accessory": null,
+      "source": {
+        "title": "Bronze bust of a bearded philosopher (\"pseudo-Seneca\" type)",
+        "artist": "Unknown, after a Hellenistic original",
+        "year": -50,
+        "url": "https://commons.wikimedia.org/wiki/Category:Pseudo-Seneca",
+        "license": "public-domain",
+        "note": "Villa dei Papiri, Herculaneum. Used for geometry only — not a portrait of Heraclitus."
+      },
+      "paletteSource": null,
+      "notes": "Shape from the pseudo-Seneca bronze; palette PROVISIONAL until the School of Athens crop arrives.",
+      "ramps": {
+        "skin": {
+          "light": "#FBD099",
+          "base": "#C08A62",
+          "shadow": "#784533"
+        },
+        "hair": {
+          "light": "#766550",
+          "base": "#5A4536",
+          "shadow": "#38251E"
+        },
+        "outfitP": {
+          "light": "#96729F",
+          "base": "#6B4E7A",
+          "shadow": "#3C2C4C"
+        },
+        "outfitS": {
+          "light": "#FFF8EA",
+          "base": "#C9C2B4",
+          "shadow": "#7E766E"
+        },
+        "outfitT": {
+          "light": "#DB9C5D",
+          "base": "#A85B2E",
+          "shadow": "#692210"
         }
       }
     }

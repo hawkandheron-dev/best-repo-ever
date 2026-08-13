@@ -14,6 +14,18 @@
  *    neighbours, and a box that strays picks up someone else's robe. The build
  *    reports each patch's spread; anything above ~90 straddled an edge and should be
  *    moved rather than trusted.
+ *
+ * A recipe comes in one of two forms.
+ *
+ *  - ONE SOURCE. `source` + `samples` + `head`: the painting supplies both the colours
+ *    and the face. This is the good case and it needs the figure to be painted upright,
+ *    in profile and lit. Aristotle is the only one so far who is.
+ *
+ *  - TWO SOURCES. `shape` points at a bust for the geometry; `source` + `samples` (or,
+ *    failing that, hand-set `colour.values`) supply the palette. Sculpture gives a clean
+ *    profile and no colour at all, so the bust is treated as a height field: regions are
+ *    traced by hand and each one's luminance is posterised onto its material's ramp. See
+ *    `src/fighter/palette/shapeMap.js`.
  */
 
 export const RECIPES = [
@@ -158,8 +170,157 @@ export const RECIPES = [
      */
     notes: 'Head unusable — figure is bowed over his writing. Palette is good; wants a bust for the face.',
   },
+
+  {
+    id: 'heraclitus',
+    name: 'Heraclitus',
+    epithet: 'The Obscure',
+    school: 'presocratic',
+    doctrine: 'Everything flows',
+    element: 'fire',
+
+    /**
+     * SHAPE from a bust. The first two-source recipe, and the reason the format exists.
+     *
+     * The bust is the bronze "pseudo-Seneca" from the Villa dei Papiri at Herculaneum —
+     * a Hellenistic poet-philosopher type, most often argued to be Hesiod. It is NOT a
+     * portrait of Heraclitus, and nothing here claims it is; no securely identified
+     * likeness of Heraclitus survives, as is true of nearly every Presocratic. What it
+     * is, is the right FACE for him: an intense, deeply carved, downturned profile,
+     * upright and evenly lit, which is precisely what the fresco could not give.
+     */
+    shape: {
+      file: 'art/sources/bust-bronze-philosopher.webp',
+      source: {
+        title: 'Bronze bust of a bearded philosopher ("pseudo-Seneca" type)',
+        artist: 'Unknown, after a Hellenistic original',
+        year: -50,
+        url: 'https://commons.wikimedia.org/wiki/Category:Pseudo-Seneca',
+        license: 'public-domain',
+        note: 'Villa dei Papiri, Herculaneum. Used for geometry only — not a portrait of Heraclitus.',
+      },
+
+      /** Crown of the hair down through the beard, with the neck behind it. */
+      crop: [0, 0, 1206, 1560],
+
+      /** He faces left in the photograph; rig space runs +x forward. */
+      flip: true,
+
+      /**
+       * The silhouette. Loose everywhere it runs through the backdrop — the flood fill
+       * clears that — and tight in exactly two places: down the back of the neck, where
+       * the head has to be cut off the shoulder, and along the left of the beard, where
+       * it has to be cut off the chest. Both junctions are the same bronze on both
+       * sides, so no colour test can find them and a hand-traced line is the only way.
+       */
+      mask: [
+        [0, 0], [1206, 0], [1206, 470], [1186, 556], [1136, 612], [1046, 662],
+        [952, 706], [884, 766], [858, 880], [852, 1000], [800, 1120], [762, 1240],
+        [716, 1340], [688, 1444], [664, 1548], [552, 1508], [478, 1462], [428, 1408],
+        [392, 1322], [352, 1240], [330, 1155], [292, 1078], [240, 1002], [0, 648],
+      ],
+
+      /**
+       * The backdrop, so the fill has something to match. A gallery cream sits well
+       * below any brightness threshold that a lit forehead would survive, which is why
+       * this is a colour rather than a cutoff.
+       */
+      background: { rgb: '#D2D2C2', tolerance: 55 },
+
+      /**
+       * Which material each part of the bronze stands for.
+       *
+       * Hair is the base because it is most of the head — cranium, the roll at the nape,
+       * and that enormous beard — and because anything mistakenly left to the base ends
+       * up dark, which reads as shadow rather than as a mistake. One patch of skin is
+       * carved out of it: the face, bounded by the hairline above, the profile in front
+       * and the moustache below.
+       *
+       * The ear and the sliver of neck below the nape roll are deliberately left as
+       * hair. Both sit in shadow, and at 49 px each is two or three pixels across.
+       */
+      regions: {
+        base: 'hair',
+        skin: [
+          [
+            [14, 590], [120, 596], [230, 616], [320, 660], [400, 706], [460, 790],
+            [490, 875], [470, 930], [420, 975], [350, 1002], [290, 1002], [245, 988],
+            [203, 932], [158, 858], [113, 778], [68, 698], [36, 634],
+          ],
+        ],
+      },
+    },
+
+    /**
+     * COLOUR, provisional.
+     *
+     * The formula calls for the School of Athens here — Heraclitus is figure 13, the
+     * brooding figure on the steps that Raphael modelled on Michelangelo, in a violet
+     * tunic with a pale undershirt and orange-brown boots. That crop has not reached
+     * this repository, so every value below is a guess and the build says so on every
+     * run. Replace `colour` with `source` + `samples` the moment the image is to hand;
+     * nothing else in the recipe has to change.
+     *
+     * The boots are the point of keeping the fresco in the loop at all. A bust gives a
+     * head; only the painting says this man wore boots when everyone around him is
+     * barefoot, and that is the sort of detail a roster of near-identical draped Greeks
+     * needs in order to be told apart.
+     */
+    colour: {
+      after: 'the School of Athens, figure 13 (violet tunic, pale undershirt, orange boots)',
+      values: {
+        'skin.primary': '#C08A62',
+        'skin.secondary': '#9A6B4C',
+        'hair.primary': '#5A4536',
+        'hair.secondary': '#3D2E24',
+        'outfit.primary': '#6B4E7A',
+        'outfit.secondary': '#C9C2B4',
+        'outfit.tertiary': '#A85B2E',
+        accent: '#8A6A44',
+        outline: '#241C18',
+      },
+    },
+
+    /** Fire: the one element that is also a doctrine about change. */
+    element_color: '#E8622A',
+
+    accessory: null,
+
+    notes: 'Shape from the pseudo-Seneca bronze; palette PROVISIONAL until the School of Athens crop arrives.',
+  },
 ];
 
 export function findRecipe(id) {
   return RECIPES.find((r) => r.id === id) ?? null;
+}
+
+/**
+ * Split a recipe into the two things a kit actually needs: something to take the SHAPE
+ * from, and something to take the COLOUR from.
+ *
+ * Both forms above collapse to the same pair here, so the builder and the tests never
+ * have to ask which form a recipe was written in — and never disagree about the answer.
+ */
+export function resolveRecipe(recipe) {
+  const shape = recipe.shape
+    ? { ...recipe.shape, provenance: recipe.shape.source }
+    : { ...recipe.head, file: recipe.source.file, provenance: recipe.source };
+
+  const colour = recipe.samples
+    ? {
+      measured: true,
+      file: recipe.source.file,
+      samples: recipe.samples,
+      outlineFrom: recipe.outlineFrom,
+      provenance: recipe.source,
+      after: null,
+    }
+    : {
+      measured: false,
+      values: recipe.colour.values,
+      provenance: null,
+      after: recipe.colour.after ?? null,
+    };
+
+  return { shape, colour };
 }

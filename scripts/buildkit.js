@@ -20,11 +20,12 @@ import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 
-import { RECIPES } from '../art/recipes.js';
+import { RECIPES, resolveRecipe } from '../art/recipes.js';
 import { rgbToHex, hexToRgb, luminance } from '../src/fighter/palette/color.js';
 import { createPalette, validatePalette, DEFAULT_BOOST, NO_BOOST } from '../src/fighter/palette/paletteSchema.js';
-import { quantisationTargets, buildRamps, checkRamps, rampsToHex, deepenOutline, SPRITE_MATERIALS } from '../src/fighter/palette/ramp.js';
+import { quantisationTargets, buildRamps, checkRamps, rampsToHex, deepenOutline, separationFor, SPRITE_MATERIALS } from '../src/fighter/palette/ramp.js';
 import { spriteify, opaqueBounds, cropImage } from '../src/fighter/palette/quantize.js';
+import { remapByRegion, assignRegionIds } from '../src/fighter/palette/shapeMap.js';
 import { createKit, createKitsDocument, upsertKit, validateKits, findSheetOverlaps } from '../src/fighter/palette/kitSchema.js';
 import { packSheet, placementMap } from '../src/fighter/palette/sheetPack.js';
 import { HEAD_PX } from '../src/fighter/rig/rigSchema.js';
@@ -93,51 +94,98 @@ async function measureAndCut(page, dataUrl, spec) {
       outline = [med(cut.map((r) => r[1])), med(cut.map((r) => r[2])), med(cut.map((r) => r[3]))];
     }
 
+    // Region ids are written into the red channel spaced this far apart, so the
+    // antialiasing canvas puts along every polygon edge still rounds to the right id.
+    const ID_STEP = 40;
+
     const cut = {};
-    for (const [name, { crop, targetHeight, flip, mask, rotate }] of Object.entries(crops)) {
+    for (const [name, { crop, targetHeight, flip, mask, rotate, regions }] of Object.entries(crops)) {
       const [cx, cy, cw, ch] = crop;
       const scale = targetHeight / ch;
       const tw = Math.max(1, Math.round(cw * scale));
       const th = Math.max(1, Math.round(targetHeight));
+
+      const tracePath = (c2d, points) => {
+        c2d.beginPath();
+        points.forEach(([mx, my], i) => {
+          const px = (mx - cx) * scale;
+          const py = (my - cy) * scale;
+          if (i === 0) c2d.moveTo(px, py);
+          else c2d.lineTo(px, py);
+        });
+        c2d.closePath();
+      };
+
+      /**
+       * The pixels and the region map must land on exactly the same geometry, so the
+       * transform is applied by one function to both contexts rather than written twice.
+       */
+      const applyTransform = (c2d) => {
+        // Source figures are rarely upright — a philosopher bent over his writing has a
+        // foreshortened, shadowed face. Rotating about the crop centre straightens the
+        // head so the profile reads. Applied before the mask so the silhouette rotates
+        // with the pixels rather than sliding off them.
+        if (rotate) {
+          c2d.translate(tw / 2, th / 2);
+          c2d.rotate((rotate * Math.PI) / 180);
+          c2d.translate(-tw / 2, -th / 2);
+        }
+        // Rig space runs +x FORWARD, and sprites are authored facing forward. A figure
+        // painted facing the other way has to be mirrored here or the fighter walks
+        // forward while looking over his shoulder.
+        if (flip) {
+          c2d.translate(tw, 0);
+          c2d.scale(-1, 1);
+        }
+        // An optional silhouette, in source coordinates. Flood-filling the background
+        // only works when the figure sits against a pale field reachable from the crop
+        // border — true of Aristotle against plaster, false of anyone surrounded by
+        // their own robe, a book and the next philosopher along.
+        if (mask && mask.length >= 3) {
+          tracePath(c2d, mask);
+          c2d.clip();
+        }
+      };
+
       const small = new OffscreenCanvas(tw, th);
       const sctx = small.getContext('2d', { willReadFrequently: true });
       sctx.imageSmoothingEnabled = true;
       sctx.imageSmoothingQuality = 'high';
-      // Source figures are rarely upright — a philosopher bent over his writing has a
-      // foreshortened, shadowed face. Rotating about the crop centre straightens the
-      // head so the profile reads. Applied before the mask so the silhouette rotates
-      // with the pixels rather than sliding off them.
-      if (rotate) {
-        sctx.translate(tw / 2, th / 2);
-        sctx.rotate((rotate * Math.PI) / 180);
-        sctx.translate(-tw / 2, -th / 2);
-      }
-      // Rig space runs +x FORWARD, and sprites are authored facing forward. A figure
-      // painted facing the other way has to be mirrored here or the fighter walks
-      // forward while looking over his shoulder.
-      if (flip) {
-        sctx.translate(tw, 0);
-        sctx.scale(-1, 1);
-      }
-      // An optional silhouette, in source coordinates. Flood-filling the background
-      // only works when the figure sits against a pale field reachable from the crop
-      // border — true of Aristotle against plaster, false of anyone surrounded by
-      // their own robe, a book and the next philosopher along.
-      if (mask && mask.length >= 3) {
-        sctx.beginPath();
-        mask.forEach(([mx, my], i) => {
-          const px = (mx - cx) * scale;
-          const py = (my - cy) * scale;
-          if (i === 0) sctx.moveTo(px, py);
-          else sctx.lineTo(px, py);
-        });
-        sctx.closePath();
-        sctx.clip();
-      }
+      applyTransform(sctx);
       sctx.drawImage(bmp, cx, cy, cw, ch, 0, 0, tw, th);
       sctx.setTransform(1, 0, 0, 1, 0, 0);
       const img = sctx.getImageData(0, 0, tw, th);
-      cut[name] = { width: tw, height: th, data: Array.from(img.data), masked: !!(mask && mask.length >= 3) };
+
+      // Hand-traced material regions, rasterised through the identical transform. The
+      // base id floods the whole clipped area first; each traced polygon then paints
+      // over it, so a recipe only has to trace what differs from the base.
+      let regionMap = null;
+      if (regions) {
+        const rc = new OffscreenCanvas(tw, th);
+        const rctx = rc.getContext('2d', { willReadFrequently: true });
+        applyTransform(rctx);
+        rctx.fillStyle = `rgb(${ID_STEP},0,0)`;
+        rctx.fillRect(-tw * 2, -th * 2, tw * 5, th * 5);
+        for (const { id, polygon } of regions.polygons) {
+          rctx.fillStyle = `rgb(${id * ID_STEP},0,0)`;
+          tracePath(rctx, polygon);
+          rctx.fill();
+        }
+        rctx.setTransform(1, 0, 0, 1, 0, 0);
+        const rd = rctx.getImageData(0, 0, tw, th).data;
+        regionMap = [];
+        for (let k = 0; k < tw * th; k++) {
+          regionMap.push(rd[k * 4 + 3] < 128 ? 0 : Math.round(rd[k * 4] / ID_STEP));
+        }
+      }
+
+      cut[name] = {
+        width: tw,
+        height: th,
+        data: Array.from(img.data),
+        masked: !!(mask && mask.length >= 3),
+        regionMap,
+      };
     }
 
     return { sourceSize: [bmp.width, bmp.height], measured, outline, cut };
@@ -184,6 +232,18 @@ function combine(patches) {
   return rgbToHex(channels);
 }
 
+/** Write `skin.primary`-style dotted role names into a palette object. */
+function setRole(palette, role, hex) {
+  const keys = role.split('.');
+  if (keys.length === 1) palette[keys[0]] = hex;
+  else palette[keys[0]] = { ...palette[keys[0]], [keys[1]]: hex };
+}
+
+const dataUrlFor = (file) => {
+  const ext = file.split('.').pop();
+  return `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${readFileSync(resolve(ROOT, file)).toString('base64')}`;
+};
+
 async function main() {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const page = await browser.newPage();
@@ -194,40 +254,61 @@ async function main() {
 
   for (const recipe of RECIPES) {
     log(`\n── ${recipe.name} ──`);
-    const bytes = readFileSync(resolve(ROOT, recipe.source.file));
-    const ext = recipe.source.file.split('.').pop();
-    const dataUrl = `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${bytes.toString('base64')}`;
+    const { shape, colour } = resolveRecipe(recipe);
 
-    const crops = { head: { crop: recipe.head.crop, targetHeight: HEAD_PX, flip: !!recipe.head.flip, mask: recipe.head.mask, rotate: recipe.head.rotate } };
-    if (recipe.garment) crops.garment = { crop: recipe.garment.crop, targetHeight: recipe.garment.targetHeight ?? HEAD_PX * 2, flip: !!recipe.head.flip };
+    // ── Palette, from the painting (or from hand-set values when there is no painting) ──
+    const measured = createPalette();
+    if (colour.measured) {
+      const sampled = await measureAndCut(page, dataUrlFor(colour.file), {
+        patches: colour.samples,
+        outlineBox: colour.outlineFrom,
+        crops: {},
+      });
+      log(`  colour   ${colour.file.split('/').pop()} ${sampled.sourceSize.join('x')}`);
+      for (const [role, patches] of Object.entries(sampled.measured)) {
+        const hex = combine(patches);
+        if (!hex) { warnings.push(`${recipe.id}: no pixels sampled for ${role}`); continue; }
+        const worst = Math.max(...patches.map((p) => p.spread));
+        if (worst > SPREAD_WARN) {
+          warnings.push(`${recipe.id}: ${role} patch spread ${worst} — may straddle an edge; check the box`);
+        }
+        setRole(measured, role, hex);
+        if (verbose) log(`  ${role.padEnd(18)} ${hex}  spread ${worst}`);
+      }
+      if (sampled.outline) measured.outline = rgbToHex(sampled.outline);
+    } else {
+      // Nothing was measured. Say so at the top of the build and again in the warning
+      // list, because a hand-set palette that looks plausible is the easiest kind of
+      // wrong value to forget about.
+      log('  colour   PROVISIONAL — hand-set, nothing measured');
+      for (const [role, hex] of Object.entries(colour.values)) setRole(measured, role, hex);
+      warnings.push(
+        `${recipe.id}: palette is PROVISIONAL — no colour source has been supplied, so every role is a guess`
+        + (colour.after ? `. Measure it from ${colour.after}` : ''),
+      );
+    }
+    if (recipe.element_color) measured.element = recipe.element_color;
+
+    // ── Sprite geometry, from the bust or from the same painting ──
+    const regions = shape.regions ? assignRegionIds(shape.regions) : null;
+    const crops = {
+      head: {
+        crop: shape.crop,
+        targetHeight: HEAD_PX,
+        flip: !!shape.flip,
+        mask: shape.mask,
+        rotate: shape.rotate,
+        regions,
+      },
+    };
+    if (recipe.garment) crops.garment = { crop: recipe.garment.crop, targetHeight: recipe.garment.targetHeight ?? HEAD_PX * 2, flip: !!shape.flip };
     if (recipe.accessory) {
       // Accessories are sized relative to the head so they stay in proportion.
       crops.accessory = { crop: recipe.accessory.crop, targetHeight: recipe.accessory.targetHeight ?? Math.round(HEAD_PX * 0.62) };
     }
 
-    const result = await measureAndCut(page, dataUrl, {
-      patches: recipe.samples,
-      outlineBox: recipe.outlineFrom,
-      crops,
-    });
-    log(`  source ${result.sourceSize.join('x')}${recipe.head.flip ? '  (head mirrored to face forward)' : ''}`);
-
-    // ── Palette ──
-    const measured = createPalette();
-    for (const [role, patches] of Object.entries(result.measured)) {
-      const hex = combine(patches);
-      if (!hex) { warnings.push(`${recipe.id}: no pixels sampled for ${role}`); continue; }
-      const worst = Math.max(...patches.map((p) => p.spread));
-      if (worst > SPREAD_WARN) {
-        warnings.push(`${recipe.id}: ${role} patch spread ${worst} — may straddle an edge; check the box`);
-      }
-      const keys = role.split('.');
-      if (keys.length === 1) measured[keys[0]] = hex;
-      else measured[keys[0]] = { ...measured[keys[0]], [keys[1]]: hex };
-      if (verbose) log(`  ${role.padEnd(18)} ${hex}  spread ${worst}`);
-    }
-    if (result.outline) measured.outline = rgbToHex(result.outline);
-    if (recipe.element_color) measured.element = recipe.element_color;
+    const result = await measureAndCut(page, dataUrlFor(shape.file), { patches: {}, outlineBox: null, crops });
+    log(`  shape    ${shape.file.split('/').pop()} ${result.sourceSize.join('x')}${shape.flip ? '  (mirrored to face forward)' : ''}`);
 
     const paletteProblems = validatePalette(measured);
     if (paletteProblems.length > 0) {
@@ -241,8 +322,14 @@ async function main() {
     const measuredSnapshot = structuredClone(measured);
     const working = structuredClone(measured);
 
+    // Separation is prescribed by the palette rather than fixed, so a character who
+    // arrived with contrast keeps it. See `separationFor`.
+    const boost = {
+      ...DEFAULT_BOOST,
+      separate: separationFor(measuredSnapshot.skin.primary, measuredSnapshot.hair.primary),
+    };
     const measuredRamps = buildRamps(measuredSnapshot, NO_BOOST);
-    const boostedRamps = buildRamps(working, DEFAULT_BOOST);
+    const boostedRamps = buildRamps(working, boost);
 
     // The sampled outline is honest but usually too light to function. Keep its hue,
     // deepen its value until the silhouette reads.
@@ -252,7 +339,7 @@ async function main() {
     }
     const gapBefore = Math.abs(luminance(measuredRamps.skin[1]) - luminance(measuredRamps.hair[1]));
     const gapAfter = Math.abs(luminance(boostedRamps.skin[1]) - luminance(boostedRamps.hair[1]));
-    log(`  skin/hair luma gap ${gapBefore.toFixed(0)} measured -> ${gapAfter.toFixed(0)} boosted`);
+    log(`  skin/hair luma gap ${gapBefore.toFixed(0)} measured -> ${gapAfter.toFixed(0)} boosted (separate ${boost.separate})`);
     for (const p of checkRamps(boostedRamps, { outline: hexToRgb(working.outline) })) {
       warnings.push(`${recipe.id} ramps: ${p}`);
     }
@@ -260,10 +347,44 @@ async function main() {
     // ── Sprites ──
     for (const [name, raw] of Object.entries(result.cut)) {
       const img = { width: raw.width, height: raw.height, data: new Uint8ClampedArray(raw.data) };
-      const targets = quantisationTargets(working, DEFAULT_BOOST, {
+      const targets = quantisationTargets(working, boost, {
         materials: SPRITE_MATERIALS[name] ?? null,
       });
-      const { image, usage } = spriteify(img, targets, working.outline, { skipMask: !!raw.masked });
+
+      // A traced silhouette normally means the background cannot be flood-filled, so it
+      // is skipped. A named backdrop colour says otherwise: the polygon is there to cut
+      // the head off the shoulders, and the fill still has a gallery wall to remove.
+      const backdrop = shape.background && name === 'head'
+        ? { skipMask: false, mask: { near: shape.background } }
+        : { skipMask: !!raw.masked };
+
+      // Monochrome shape sources get repainted region by region before quantisation.
+      let mapStats = null;
+      const preQuantise = raw.regionMap
+        ? (masked) => {
+          const { image: repainted, stats } = remapByRegion(masked, raw.regionMap, {
+            regions: regions.ids,
+            ramps: boostedRamps,
+            outline: hexToRgb(working.outline),
+          });
+          mapStats = stats;
+          return repainted;
+        }
+        : null;
+
+      const { image, usage } = spriteify(img, targets, working.outline, { ...backdrop, preQuantise });
+      for (const s of mapStats ?? []) {
+        if (s.error) { warnings.push(`${recipe.id}: region ${s.id} (${s.material}) — ${s.error}`); continue; }
+        if (verbose) {
+          const bands = Object.entries(s.counts).map(([k, v]) => `${k} ${v}`).join(', ');
+          log(`    region ${s.material.padEnd(8)} ${String(s.pixels).padStart(5)} px  luma ${s.range.join('–').padEnd(8)}  [${bands}]`);
+        }
+        // A region that all but vanished means its polygon was traced somewhere the
+        // figure is not, and the material it stands for will be missing from the sprite.
+        if (s.pixels < 0.02 * raw.width * raw.height) {
+          warnings.push(`${recipe.id}: region "${s.material}" covers only ${s.pixels} px — check the polygon`);
+        }
+      }
       const bounds = opaqueBounds(image);
       if (!bounds) { warnings.push(`${recipe.id}: ${name} came out empty after masking`); continue; }
       const tight = cropImage(image, bounds);
@@ -287,14 +408,17 @@ async function main() {
       element: recipe.element,
       palette: working,
       measured: measuredSnapshot,
-      boost: DEFAULT_BOOST,
+      boost,
       ramps: rampsToHex(boostedRamps),
       head: { region: null, pivot: null },
       garment: recipe.garment ? { region: null } : null,
       accessory: recipe.accessory
         ? { kind: recipe.accessory.kind, label: recipe.accessory.label, region: null, grip: recipe.accessory.grip }
         : null,
-      source: { ...recipe.source, file: undefined },
+      source: { ...shape.provenance, file: undefined },
+      paletteSource: colour.provenance && colour.file !== shape.file
+        ? { ...colour.provenance, file: undefined }
+        : null,
       notes: recipe.notes ?? '',
     }));
   }

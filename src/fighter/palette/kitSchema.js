@@ -40,7 +40,16 @@ export function createKit(id, overrides = {}) {
     head: null,
     garment: null,
     accessory: null,
+    /**
+     * Provenance of the pixels that actually ship in the sheet. The licence obligation
+     * follows the image the sprite was cut from, so this is always the SHAPE source.
+     */
     source: { title: '', artist: '', year: null, url: '', license: '', note: '' },
+    /**
+     * Provenance of the colours, when they came from somewhere else — a bust supplies
+     * the profile, a fresco supplies what he wore. Null when one image did both.
+     */
+    paletteSource: null,
     notes: '',
     ...overrides,
   };
@@ -130,6 +139,11 @@ export function validateKits(doc) {
     }
 
     if (!kit.source?.license) problems.push(`${who} has no licence recorded`);
+    // A second source only appears when shape and colour came from different works, and
+    // then it has to be cleared the same way the first one is.
+    if (kit.paletteSource && !kit.paletteSource.license) {
+      problems.push(`${who} has a palette source with no licence recorded`);
+    }
   }
 
   // Every region has to sit inside the sheet, or the renderer samples garbage.
