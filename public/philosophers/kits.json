@@ -104,6 +104,104 @@
           "shadow": "#8A5D37"
         }
       }
+    },
+    {
+      "id": "pythagoras",
+      "name": "Pythagoras",
+      "epithet": "Of Samos",
+      "school": "presocratic",
+      "doctrine": "All is number",
+      "element": "number",
+      "palette": {
+        "skin": {
+          "primary": "#CFA87B",
+          "secondary": "#A1815D"
+        },
+        "hair": {
+          "primary": "#694B2F",
+          "secondary": "#6D4F33"
+        },
+        "outfit": {
+          "primary": "#D2AD8E",
+          "secondary": "#D2D2C4",
+          "tertiary": "#743E1E"
+        },
+        "outline": "#030201",
+        "accent": "#9E8E6C",
+        "element": "#3FA9A0"
+      },
+      "measured": {
+        "skin": {
+          "primary": "#CFA87B",
+          "secondary": "#A1815D"
+        },
+        "hair": {
+          "primary": "#694B2F",
+          "secondary": "#6D4F33"
+        },
+        "outfit": {
+          "primary": "#D2AD8E",
+          "secondary": "#D2D2C4",
+          "tertiary": "#743E1E"
+        },
+        "outline": "#59361E",
+        "accent": "#9E8E6C",
+        "element": "#3FA9A0"
+      },
+      "boost": {
+        "spread": 1.7,
+        "separate": 1
+      },
+      "head": {
+        "region": [
+          39,
+          1,
+          33,
+          45
+        ],
+        "pivot": [
+          17,
+          45
+        ]
+      },
+      "garment": null,
+      "accessory": null,
+      "source": {
+        "title": "The School of Athens (detail)",
+        "artist": "Raphael",
+        "year": 1511,
+        "url": "https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg",
+        "license": "public-domain",
+        "note": "Figure 6 in the standard identification key. Seated, writing, with a slate held for him."
+      },
+      "notes": "Head unusable — figure is bowed over his writing. Palette is good; wants a bust for the face.",
+      "ramps": {
+        "skin": {
+          "light": "#FFE4AD",
+          "base": "#DBB282",
+          "shadow": "#896048"
+        },
+        "hair": {
+          "light": "#605036",
+          "base": "#4A3421",
+          "shadow": "#2E1A10"
+        },
+        "outfitP": {
+          "light": "#FFE4BD",
+          "base": "#D2AD8E",
+          "shadow": "#836052"
+        },
+        "outfitS": {
+          "light": "#FFFDF1",
+          "base": "#D2D2C4",
+          "shadow": "#828379"
+        },
+        "outfitT": {
+          "light": "#976B3E",
+          "base": "#743E1E",
+          "shadow": "#49170A"
+        }
+      }
     }
   ]
 }

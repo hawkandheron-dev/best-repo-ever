@@ -24,6 +24,7 @@ import {
 } from '../src/fighter/palette/kitSchema.js';
 import { packSheet, placementMap } from '../src/fighter/palette/sheetPack.js';
 import { DEFAULT_SKELETON } from '../src/fighter/rig/rigSchema.js';
+import { RECIPES } from '../art/recipes.js';
 import {
   createImage, cloneImage, maskBackground, quantiseToTargets, despeckle,
   addOutline, opaqueBounds, cropImage, spriteify,
@@ -502,6 +503,44 @@ check('sheet dimensions are powers of two', (() => {
   const isPow2 = (n) => (n & (n - 1)) === 0;
   return isPow2(packed.width) && isPow2(packed.height);
 })());
+
+/* ── Recipes ──────────────────────────────────────────────────────────────── */
+
+// The recipes are hand-authored coordinates, which is exactly the kind of data that
+// rots silently. These checks are cheap and catch a fat-fingered box before a build.
+check('every recipe has an id, a name and a source file', RECIPES.every(
+  (r) => r.id && r.name && r.source?.file && r.source?.license,
+));
+check('recipe ids are unique', new Set(RECIPES.map((r) => r.id)).size === RECIPES.length);
+check('every head crop is [x, y, w, h] with positive size', RECIPES.every(
+  (r) => Array.isArray(r.head?.crop) && r.head.crop.length === 4
+    && r.head.crop.every(Number.isFinite) && r.head.crop[2] > 0 && r.head.crop[3] > 0,
+));
+check('every sample box is [x, y, w, h] with positive size', RECIPES.every(
+  (r) => Object.values(r.samples).every(
+    (boxes) => boxes.every((b) => b.length === 4 && b.every(Number.isFinite) && b[2] > 0 && b[3] > 0),
+  ),
+));
+check('every recipe samples all eight measurable roles', RECIPES.every(
+  (r) => ['skin.primary', 'skin.secondary', 'hair.primary', 'hair.secondary',
+    'outfit.primary', 'outfit.secondary', 'outfit.tertiary', 'accent'].every((k) => r.samples[k]?.length),
+));
+check('every traced silhouette is a real polygon', RECIPES.every(
+  (r) => !r.head.mask || (r.head.mask.length >= 3 && r.head.mask.every((pt) => pt.length === 2 && pt.every(Number.isFinite))),
+));
+// A mask outside its crop clips to nothing and yields an empty sprite.
+check('every silhouette lies inside its crop', RECIPES.every((r) => {
+  if (!r.head.mask) return true;
+  const [cx, cy, cw, ch] = r.head.crop;
+  return r.head.mask.some(([x, y]) => x >= cx && x <= cx + cw && y >= cy && y <= cy + ch);
+}));
+check('every outline box is well formed', RECIPES.every(
+  (r) => Array.isArray(r.outlineFrom) && r.outlineFrom.length === 4 && r.outlineFrom[2] > 0,
+));
+check('every element colour is a hex value', RECIPES.every((r) => {
+  if (!r.element_color) return true;
+  try { hexToRgb(r.element_color); return true; } catch { return false; }
+}));
 
 /* ── Report ───────────────────────────────────────────────────────────────── */
 

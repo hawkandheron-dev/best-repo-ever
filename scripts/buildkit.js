@@ -94,7 +94,7 @@ async function measureAndCut(page, dataUrl, spec) {
     }
 
     const cut = {};
-    for (const [name, { crop, targetHeight }] of Object.entries(crops)) {
+    for (const [name, { crop, targetHeight, flip, mask, rotate }] of Object.entries(crops)) {
       const [cx, cy, cw, ch] = crop;
       const scale = targetHeight / ch;
       const tw = Math.max(1, Math.round(cw * scale));
@@ -103,9 +103,41 @@ async function measureAndCut(page, dataUrl, spec) {
       const sctx = small.getContext('2d', { willReadFrequently: true });
       sctx.imageSmoothingEnabled = true;
       sctx.imageSmoothingQuality = 'high';
+      // Source figures are rarely upright — a philosopher bent over his writing has a
+      // foreshortened, shadowed face. Rotating about the crop centre straightens the
+      // head so the profile reads. Applied before the mask so the silhouette rotates
+      // with the pixels rather than sliding off them.
+      if (rotate) {
+        sctx.translate(tw / 2, th / 2);
+        sctx.rotate((rotate * Math.PI) / 180);
+        sctx.translate(-tw / 2, -th / 2);
+      }
+      // Rig space runs +x FORWARD, and sprites are authored facing forward. A figure
+      // painted facing the other way has to be mirrored here or the fighter walks
+      // forward while looking over his shoulder.
+      if (flip) {
+        sctx.translate(tw, 0);
+        sctx.scale(-1, 1);
+      }
+      // An optional silhouette, in source coordinates. Flood-filling the background
+      // only works when the figure sits against a pale field reachable from the crop
+      // border — true of Aristotle against plaster, false of anyone surrounded by
+      // their own robe, a book and the next philosopher along.
+      if (mask && mask.length >= 3) {
+        sctx.beginPath();
+        mask.forEach(([mx, my], i) => {
+          const px = (mx - cx) * scale;
+          const py = (my - cy) * scale;
+          if (i === 0) sctx.moveTo(px, py);
+          else sctx.lineTo(px, py);
+        });
+        sctx.closePath();
+        sctx.clip();
+      }
       sctx.drawImage(bmp, cx, cy, cw, ch, 0, 0, tw, th);
+      sctx.setTransform(1, 0, 0, 1, 0, 0);
       const img = sctx.getImageData(0, 0, tw, th);
-      cut[name] = { width: tw, height: th, data: Array.from(img.data) };
+      cut[name] = { width: tw, height: th, data: Array.from(img.data), masked: !!(mask && mask.length >= 3) };
     }
 
     return { sourceSize: [bmp.width, bmp.height], measured, outline, cut };
@@ -166,8 +198,8 @@ async function main() {
     const ext = recipe.source.file.split('.').pop();
     const dataUrl = `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${bytes.toString('base64')}`;
 
-    const crops = { head: { crop: recipe.head.crop, targetHeight: HEAD_PX } };
-    if (recipe.garment) crops.garment = { crop: recipe.garment.crop, targetHeight: recipe.garment.targetHeight ?? HEAD_PX * 2 };
+    const crops = { head: { crop: recipe.head.crop, targetHeight: HEAD_PX, flip: !!recipe.head.flip, mask: recipe.head.mask, rotate: recipe.head.rotate } };
+    if (recipe.garment) crops.garment = { crop: recipe.garment.crop, targetHeight: recipe.garment.targetHeight ?? HEAD_PX * 2, flip: !!recipe.head.flip };
     if (recipe.accessory) {
       // Accessories are sized relative to the head so they stay in proportion.
       crops.accessory = { crop: recipe.accessory.crop, targetHeight: recipe.accessory.targetHeight ?? Math.round(HEAD_PX * 0.62) };
@@ -178,7 +210,7 @@ async function main() {
       outlineBox: recipe.outlineFrom,
       crops,
     });
-    log(`  source ${result.sourceSize.join('x')}`);
+    log(`  source ${result.sourceSize.join('x')}${recipe.head.flip ? '  (head mirrored to face forward)' : ''}`);
 
     // ── Palette ──
     const measured = createPalette();
@@ -231,7 +263,7 @@ async function main() {
       const targets = quantisationTargets(working, DEFAULT_BOOST, {
         materials: SPRITE_MATERIALS[name] ?? null,
       });
-      const { image, usage } = spriteify(img, targets, working.outline);
+      const { image, usage } = spriteify(img, targets, working.outline, { skipMask: !!raw.masked });
       const bounds = opaqueBounds(image);
       if (!bounds) { warnings.push(`${recipe.id}: ${name} came out empty after masking`); continue; }
       const tight = cropImage(image, bounds);
