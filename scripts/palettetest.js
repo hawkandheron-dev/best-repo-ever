@@ -16,7 +16,8 @@ import {
 } from '../src/fighter/palette/paletteSchema.js';
 import {
   buildRamp, buildRamps, depthRamps, quantisationTargets, checkRamps, rampsToHex,
-  deepenOutline, separationFor, SPRITE_MATERIALS, DEPTH_FACTOR, MIN_SKIN_HAIR_GAP,
+  deepenOutline, separationFor, outlineGapTarget, SPRITE_MATERIALS, DEPTH_FACTOR,
+  MIN_SKIN_HAIR_GAP, OUTLINE_HEADROOM, MIN_MATERIAL_VALUE, liftedMaterials,
 } from '../src/fighter/palette/ramp.js';
 import {
   regionCdf, bandFor, bandsFor, remapByRegion, assignRegionIds,
@@ -528,6 +529,96 @@ check('a palette separated by the prescribed amount passes the gap check', (() =
   const p = createPalette({ skin: { primary: '#CEA074', secondary: '#B1926D' }, hair: { primary: '#B4946E', secondary: '#A38869' } });
   const boosted = buildRamps(p, { ...DEFAULT_BOOST, separate: separationFor(p.skin.primary, p.hair.primary) });
   return Math.abs(luminance(boosted.skin[1]) - luminance(boosted.hair[1])) >= MIN_SKIN_HAIR_GAP;
+})());
+
+/* ── The material value floor ─────────────────────────────────────────────── */
+
+// Ramp stops are multiplicative on value, so a very dark base has no room to descend:
+// its three stops collapse into one smear and the outline still has to fit underneath.
+// Raphael's Heraclitus has near-black hair, and a bust-derived head is mostly hair.
+const NEAR_BLACK_HAIR = createPalette({ hair: { primary: '#3E2B2F', secondary: '#241A1C' } });
+
+check('a dark material is reported as lifted',
+  liftedMaterials(NEAR_BLACK_HAIR, DEFAULT_BOOST).some((m) => m.id === 'hair'));
+check('a material already above the floor is left where it is',
+  !liftedMaterials(createPalette(), { ...DEFAULT_BOOST, separate: 0 }).some((m) => m.id === 'skin'));
+check('lifting widens the ramp enough for three stops to separate', (() => {
+  const withFloor = buildRamps(NEAR_BLACK_HAIR, { ...DEFAULT_BOOST, separate: 0 });
+  const without = buildRamps(NEAR_BLACK_HAIR, { ...DEFAULT_BOOST, separate: 0, floor: 0 });
+  const span = (r) => luminance(r.hair[0]) - luminance(r.hair[2]);
+  return span(withFloor) > span(without) && span(withFloor) > 30;
+})());
+check('lifting preserves hue and the ramp stays monotonic', (() => {
+  const r = buildRamps(NEAR_BLACK_HAIR, { ...DEFAULT_BOOST, separate: 0 });
+  const wanted = rgbToHsv(hexToRgb('#3E2B2F'))[0];
+  return near(rgbToHsv(r.hair[1])[0], wanted, 2) && checkRamps(r).length === 0;
+})());
+check('the floor overrides a separate bias that would push below it', (() => {
+  // `separate` drops hair by up to 30%; on an already-dark palette that must not win.
+  const r = buildRamps(NEAR_BLACK_HAIR, { ...DEFAULT_BOOST, separate: 1 });
+  return rgbToHsv(r.hair[1])[2] >= MIN_MATERIAL_VALUE - 1e-6;
+})());
+check('a black base is left alone rather than divided by zero', (() => {
+  const r = buildRamps(createPalette({ hair: { primary: '#000000', secondary: '#000000' } }), DEFAULT_BOOST);
+  return r.hair.every((stop) => stop.every(Number.isFinite));
+})());
+
+/* ── Outline headroom ─────────────────────────────────────────────────────── */
+
+// A fixed "28 luma below the darkest shadow" is unsatisfiable when the darkest shadow is
+// itself below 28. Raphael's Heraclitus has near-black hair and hit exactly that: the
+// rule ground a sampled colour down to #010001 over forty iterations and then reported
+// failure anyway. The demand is now capped at the room that actually exists.
+const PALE_RAMPS = buildRamps(createPalette({ hair: { primary: '#B0926A', secondary: '#7E6544' } }), NO_BOOST);
+// `floor: 0` to reach the case deliberately. The material floor normally keeps shadows
+// out of this territory, but it cannot for a saturated dark colour — value is floored,
+// and a saturated hue at that value still lands near-black in luminance.
+const DARK_RAMPS = buildRamps(
+  createPalette({ hair: { primary: '#2A1E22', secondary: '#180F12' } }),
+  { ...NO_BOOST, floor: 0 },
+);
+// The two rules have to work together, which is the case that actually shipped broken:
+// before the floor, a near-black-haired palette drove the outline to #010001 AND still
+// failed the check. With the floor the shadow sits high enough that a real colour clears.
+check('a near-black palette now gets an outline that is neither black nor failing', (() => {
+  const r = buildRamps(NEAR_BLACK_HAIR, DEFAULT_BOOST);
+  const deep = deepenOutline('#10060F', r);
+  return luminance(hexToRgb(deep)) > 4
+    && !checkRamps(r, { outline: hexToRgb(deep) }).some((x) => x.includes('Outline'));
+})());
+
+check('a palette with room to spare keeps the full gap',
+  outlineGapTarget(PALE_RAMPS).target === 28);
+check('a near-black palette asks for less than the full gap',
+  outlineGapTarget(DARK_RAMPS).target < 28);
+check('the reduced gap is a share of the room below the darkest shadow', (() => {
+  const { darkestShadow, target } = outlineGapTarget(DARK_RAMPS);
+  return Math.abs(target - darkestShadow * OUTLINE_HEADROOM) < 1e-9;
+})());
+check('the target is never negative, however dark the palette',
+  outlineGapTarget(buildRamps(createPalette({ hair: { primary: '#010101', secondary: '#000000' } }), NO_BOOST)).target >= 0);
+
+check('deepening always satisfies the check it is trying to satisfy', (() => {
+  for (const ramps of [PALE_RAMPS, DARK_RAMPS]) {
+    const deep = deepenOutline('#695344', ramps);
+    if (checkRamps(ramps, { outline: hexToRgb(deep) }).some((p) => p.includes('Outline'))) return false;
+  }
+  return true;
+})());
+// The whole reason for sampling an outline instead of using black is to keep the hue.
+// Grinding it to #010001 throws that away, which is what the uncapped rule did.
+check('a deepened outline keeps some of its sampled hue', (() => {
+  const deep = hexToRgb(deepenOutline('#10060F', DARK_RAMPS));
+  return deep.some((c) => c > 3) && luminance(deep) > 0;
+})());
+// Idempotence is the honest form of "already dark enough is left alone": whatever the
+// first pass settled on, a second pass must agree with it.
+check('deepening is idempotent', (() => {
+  for (const ramps of [PALE_RAMPS, DARK_RAMPS]) {
+    const once = deepenOutline('#695344', ramps);
+    if (deepenOutline(once, ramps) !== once) return false;
+  }
+  return true;
 })());
 
 /* ── Shape mapping ────────────────────────────────────────────────────────── */

@@ -39,9 +39,13 @@ rather than by value. Deep carving becomes outline, mid-tones the base, polished
 the light stop. See `src/fighter/palette/shapeMap.js`.
 
 The painting keeps earning its place even when none of its pixels ship. Heraclitus wears
-**boots** in the School of Athens when everyone around him is barefoot — a bust could
-never tell you that, and on a roster of near-identical draped Greeks it is exactly the
-sort of detail that tells two of them apart.
+**orange boots** in the School of Athens when everyone around him is barefoot — a bust
+could never tell you that, and on a roster of near-identical draped Greeks it is exactly
+the sort of detail that tells two of them apart. They take `outfit.tertiary` outright
+rather than being filed away as a detail.
+
+The kit records both: `source` is the shape provenance, because the licence obligation
+follows the pixels that ship, and `paletteSource` is the painting.
 
 ## Adding a philosopher
 
@@ -78,6 +82,12 @@ Two things the build will tell you and you should believe:
   darkening hair unconditionally turns a bust-derived head, which is mostly hair, black.
 - **A PROVISIONAL palette** means nothing was measured and every role is a guess. It is
   reported on every build until a colour source is supplied.
+- **`lifted off the floor`** means a material was too dark to show three distinct stops
+  and was raised until it could. Ramp stops are multiplicative on value, so a base at
+  v=0.24 puts its shadow at 0.15 and its light at 0.31 — one smear, not three colours,
+  with an outline still to fit underneath. Renaissance frescoes are full of near-black
+  hair and a bust-derived head is mostly hair, so this fires often. `measured` keeps the
+  untouched values.
 
 ## What gets cut, and what does not
 

@@ -127,7 +127,7 @@
           "secondary": "#D2D2C4",
           "tertiary": "#743E1E"
         },
-        "outline": "#070402",
+        "outline": "#0F0905",
         "accent": "#9E8E6C",
         "element": "#3FA9A0"
       },
@@ -214,38 +214,38 @@
       "element": "fire",
       "palette": {
         "skin": {
-          "primary": "#C08A62",
-          "secondary": "#9A6B4C"
+          "primary": "#DA7B52",
+          "secondary": "#96482D"
         },
         "hair": {
-          "primary": "#5A4536",
-          "secondary": "#3D2E24"
+          "primary": "#3E2B2F",
+          "secondary": "#3F2423"
         },
         "outfit": {
-          "primary": "#6B4E7A",
-          "secondary": "#C9C2B4",
-          "tertiary": "#A85B2E"
+          "primary": "#865C6F",
+          "secondary": "#4D1F33",
+          "tertiary": "#B6482D"
         },
-        "outline": "#0C0908",
-        "accent": "#8A6A44",
+        "outline": "#0E050D",
+        "accent": "#383230",
         "element": "#E8622A"
       },
       "measured": {
         "skin": {
-          "primary": "#C08A62",
-          "secondary": "#9A6B4C"
+          "primary": "#DA7B52",
+          "secondary": "#96482D"
         },
         "hair": {
-          "primary": "#5A4536",
-          "secondary": "#3D2E24"
+          "primary": "#3E2B2F",
+          "secondary": "#3F2423"
         },
         "outfit": {
-          "primary": "#6B4E7A",
-          "secondary": "#C9C2B4",
-          "tertiary": "#A85B2E"
+          "primary": "#865C6F",
+          "secondary": "#4D1F33",
+          "tertiary": "#B6482D"
         },
-        "outline": "#241C18",
-        "accent": "#8A6A44",
+        "outline": "#10060F",
+        "accent": "#383230",
         "element": "#E8622A"
       },
       "boost": {
@@ -274,33 +274,40 @@
         "license": "public-domain",
         "note": "Villa dei Papiri, Herculaneum. Used for geometry only — not a portrait of Heraclitus."
       },
-      "paletteSource": null,
-      "notes": "Shape from the pseudo-Seneca bronze; palette PROVISIONAL until the School of Athens crop arrives.",
+      "paletteSource": {
+        "title": "The School of Athens (detail)",
+        "artist": "Raphael",
+        "year": 1511,
+        "url": "https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg",
+        "license": "public-domain",
+        "note": "Figure 13 in the standard identification key. Seated on the steps, writing, in violet and orange boots."
+      },
+      "notes": "Shape from the pseudo-Seneca bronze; colour measured from the School of Athens.",
       "ramps": {
         "skin": {
-          "light": "#FBD099",
-          "base": "#C08A62",
-          "shadow": "#784533"
+          "light": "#FFB780",
+          "base": "#DA7B52",
+          "shadow": "#883225"
         },
         "hair": {
-          "light": "#766550",
-          "base": "#5A4536",
-          "shadow": "#38251E"
+          "light": "#715658",
+          "base": "#573C42",
+          "shadow": "#36232A"
         },
         "outfitP": {
-          "light": "#96729F",
-          "base": "#6B4E7A",
-          "shadow": "#3C2C4C"
+          "light": "#AF8391",
+          "base": "#865C6F",
+          "shadow": "#543548"
         },
         "outfitS": {
-          "light": "#FFF8EA",
-          "base": "#C9C2B4",
-          "shadow": "#7E766E"
+          "light": "#713B4C",
+          "base": "#572339",
+          "shadow": "#361027"
         },
         "outfitT": {
-          "light": "#DB9C5D",
-          "base": "#A85B2E",
-          "shadow": "#692210"
+          "light": "#EE8E5F",
+          "base": "#B6482D",
+          "shadow": "#72110E"
         }
       }
     }

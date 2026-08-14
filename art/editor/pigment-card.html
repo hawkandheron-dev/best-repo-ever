@@ -440,19 +440,36 @@ function buildRamp(baseHex, shadowHex, { spread = 1, valueBias = 0 } = {}) {
     : hsvToRgb([towardHue(h, 225, 10), Math.min(1, s * (1 + 0.10 * spread)), bv * (1 - 0.22 * spread)]);
   return [light, base, shadow];
 }
+/* Below this value a material's three stops collapse into one at sprite size: the stops
+   are multiplicative, so a base at v=0.24 sits its shadow at 0.15 and its light at 0.31,
+   with an outline still to fit underneath. Renaissance frescoes are full of near-black
+   hair and a bust-derived head is mostly hair, so this floor earns its keep. */
+const MIN_MATERIAL_VALUE = 0.34;
 function buildRamps(palette, boost) {
   const bias = { skin: +0.06 * boost.separate, hair: -0.30 * boost.separate };
+  const floor = boost.floor ?? MIN_MATERIAL_VALUE;
   const out = {};
   for (const m of MATERIALS) {
-    out[m.id] = buildRamp(getRole(palette, m.base), m.shadow ? getRole(palette, m.shadow) : null,
-      { spread: boost.spread, valueBias: bias[m.id] ?? 0 });
+    const baseHex = getRole(palette, m.base);
+    const v = rgbToHsv(hexToRgb(baseHex))[2];
+    const wanted = Math.max(v * (1 + (bias[m.id] ?? 0)), floor);
+    out[m.id] = buildRamp(baseHex, m.shadow ? getRole(palette, m.shadow) : null,
+      { spread: boost.spread, valueBias: v > 0 ? wanted / v - 1 : 0 });
   }
   return out;
 }
-function deepenOutline(hex, ramps, gapWanted = 28, margin = 3) {
+/* "28 luma below the darkest shadow" is unsatisfiable when the darkest shadow is itself
+   below 28 — it grinds a sampled colour down to black and fails anyway. Cap the demand at
+   the room that actually exists below it. */
+const OUTLINE_HEADROOM = 0.6;
+function outlineGapTarget(ramps, gapWanted = 28) {
   const darkest = Math.min(...Object.values(ramps).map((s) => lum(s[2])));
+  return { darkest, target: Math.min(gapWanted, darkest * OUTLINE_HEADROOM) };
+}
+function deepenOutline(hex, ramps, gapWanted = 28, margin = 3) {
+  const { darkest, target } = outlineGapTarget(ramps, gapWanted);
   let rgb = hexToRgb(hex), guard = 0;
-  while (darkest - lum(rgb) < gapWanted + margin && guard < 40) { rgb = darken(rgb, 0.92); guard++; }
+  while (darkest - lum(rgb) < target + margin && guard < 40) { rgb = darken(rgb, 0.92); guard++; }
   return rgbToHex(rgb);
 }
 

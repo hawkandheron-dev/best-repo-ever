@@ -23,7 +23,7 @@ import { resolve, dirname } from 'node:path';
 import { RECIPES, resolveRecipe } from '../art/recipes.js';
 import { rgbToHex, hexToRgb, luminance } from '../src/fighter/palette/color.js';
 import { createPalette, validatePalette, DEFAULT_BOOST, NO_BOOST } from '../src/fighter/palette/paletteSchema.js';
-import { quantisationTargets, buildRamps, checkRamps, rampsToHex, deepenOutline, separationFor, SPRITE_MATERIALS } from '../src/fighter/palette/ramp.js';
+import { quantisationTargets, buildRamps, checkRamps, rampsToHex, deepenOutline, separationFor, liftedMaterials, SPRITE_MATERIALS } from '../src/fighter/palette/ramp.js';
 import { spriteify, opaqueBounds, cropImage } from '../src/fighter/palette/quantize.js';
 import { remapByRegion, assignRegionIds } from '../src/fighter/palette/shapeMap.js';
 import { createKit, createKitsDocument, upsertKit, validateKits, findSheetOverlaps } from '../src/fighter/palette/kitSchema.js';
@@ -340,6 +340,9 @@ async function main() {
     const gapBefore = Math.abs(luminance(measuredRamps.skin[1]) - luminance(measuredRamps.hair[1]));
     const gapAfter = Math.abs(luminance(boostedRamps.skin[1]) - luminance(boostedRamps.hair[1]));
     log(`  skin/hair luma gap ${gapBefore.toFixed(0)} measured -> ${gapAfter.toFixed(0)} boosted (separate ${boost.separate})`);
+    for (const m of liftedMaterials(working, boost)) {
+      log(`  ${m.id} lifted off the floor: value ${m.from.toFixed(2)} -> ${m.to.toFixed(2)} (too dark to show three stops)`);
+    }
     for (const p of checkRamps(boostedRamps, { outline: hexToRgb(working.outline) })) {
       warnings.push(`${recipe.id} ramps: ${p}`);
     }

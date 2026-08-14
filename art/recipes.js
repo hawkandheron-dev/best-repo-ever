@@ -252,41 +252,63 @@ export const RECIPES = [
     },
 
     /**
-     * COLOUR, provisional.
+     * COLOUR from the painting, measured.
      *
-     * The formula calls for the School of Athens here — Heraclitus is figure 13, the
-     * brooding figure on the steps that Raphael modelled on Michelangelo, in a violet
-     * tunic with a pale undershirt and orange-brown boots. That crop has not reached
-     * this repository, so every value below is a guess and the build says so on every
-     * run. Replace `colour` with `source` + `samples` the moment the image is to hand;
-     * nothing else in the recipe has to change.
+     * Raphael's Heraclitus is figure 13, the brooding figure on the steps that he added
+     * late and modelled on Michelangelo. His head is bowed over his writing with a hand
+     * at his chin, so the face is three-quarter, foreshortened and in shadow — the same
+     * failure the bust is here to fix. What the fresco is good for is everything else.
      *
-     * The boots are the point of keeping the fresco in the loop at all. A bust gives a
-     * head; only the painting says this man wore boots when everyone around him is
-     * barefoot, and that is the sort of detail a roster of near-identical draped Greeks
-     * needs in order to be told apart.
+     * He is the most distinctly dressed figure in the room: a dusty mauve tunic over a
+     * deep maroon under-robe, and ORANGE BOOTS when every other philosopher on the steps
+     * is barefoot. On a roster of near-identical draped Greeks that is worth more than
+     * another brown himation, so the boots take `outfit.tertiary` outright rather than
+     * being treated as a detail.
+     *
+     * Patches run high on spread here. That is the painting, not a stray box — Raphael
+     * modelled this figure with far more local contrast than the flatter, more faded
+     * figures further back, and a box tight enough to quiet the warning would be too
+     * small to be representative.
      */
-    colour: {
-      after: 'the School of Athens, figure 13 (violet tunic, pale undershirt, orange boots)',
-      values: {
-        'skin.primary': '#C08A62',
-        'skin.secondary': '#9A6B4C',
-        'hair.primary': '#5A4536',
-        'hair.secondary': '#3D2E24',
-        'outfit.primary': '#6B4E7A',
-        'outfit.secondary': '#C9C2B4',
-        'outfit.tertiary': '#A85B2E',
-        accent: '#8A6A44',
-        outline: '#241C18',
-      },
+    source: {
+      file: 'art/sources/heraclitus-school-of-athens.webp',
+      title: 'The School of Athens (detail)',
+      artist: 'Raphael',
+      year: 1511,
+      url: 'https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg',
+      license: 'public-domain',
+      note: 'Figure 13 in the standard identification key. Seated on the steps, writing, in violet and orange boots.',
     },
+
+    samples: {
+      // The forearm and the hand at his chin: the two places skin is both lit and large
+      // enough to sample. His face is too shadowed to measure from.
+      'skin.primary': [[850, 600, 46, 30], [846, 280, 36, 30]],
+      // Shadowed flesh, from the calf between the boot tops.
+      'skin.secondary': [[652, 952, 30, 26]],
+      // Crown and beard together. The crown alone is nearly black; the head sprite is
+      // bust-derived and its "hair" covers a huge beard, so the blend suits it better.
+      'hair.primary': [[652, 110, 52, 42], [716, 320, 40, 36]],
+      'hair.secondary': [[630, 200, 24, 22]],
+      // The mauve tunic, across its range: lit shoulder, mid back, deep lower drape.
+      'outfit.primary': [[528, 348, 44, 40], [408, 408, 50, 46], [256, 768, 50, 46]],
+      // The maroon under-robe showing at the chest and down the flank.
+      'outfit.secondary': [[682, 472, 40, 38], [660, 520, 36, 34]],
+      // The boots. Upper left boot and the lit right one.
+      'outfit.tertiary': [[400, 1030, 56, 50], [572, 1160, 40, 36]],
+      // The olive-grey cloth over the block he writes on — the fourth material in the
+      // figure, and the one that will serve for straps and leather.
+      accent: [[852, 722, 56, 46]],
+    },
+
+    outlineFrom: [280, 70, 740, 1360],
 
     /** Fire: the one element that is also a doctrine about change. */
     element_color: '#E8622A',
 
     accessory: null,
 
-    notes: 'Shape from the pseudo-Seneca bronze; palette PROVISIONAL until the School of Athens crop arrives.',
+    notes: 'Shape from the pseudo-Seneca bronze; colour measured from the School of Athens.',
   },
 ];
 
