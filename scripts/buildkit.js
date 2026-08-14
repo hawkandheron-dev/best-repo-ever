@@ -232,6 +232,11 @@ function combine(patches) {
   return rgbToHex(channels);
 }
 
+/** Read a `skin.primary`-style dotted role name out of a palette object. */
+function getRoleValue(palette, role) {
+  return role.split('.').reduce((o, k) => o?.[k], palette);
+}
+
 /** Write `skin.primary`-style dotted role names into a palette object. */
 function setRole(palette, role, hex) {
   const keys = role.split('.');
@@ -289,6 +294,16 @@ async function main() {
     }
     if (recipe.element_color) measured.element = recipe.element_color;
 
+    // Hand overrides, applied after measurement and before anything derives from it.
+    // This is how an edit made by eye in the pigment card gets back into the build: the
+    // sampling stays honest and `measured` still records what the painting said, while
+    // the sprite is built from the value someone actually chose.
+    const overrides = Object.entries(recipe.overrides ?? {});
+    for (const [role, hex] of overrides) {
+      log(`  override ${role.padEnd(17)} ${getRoleValue(measured, role) ?? '—'} -> ${hex}`);
+      setRole(measured, role, hex);
+    }
+
     // ── Sprite geometry, from the bust or from the same painting ──
     const regions = shape.regions ? assignRegionIds(shape.regions) : null;
     const crops = {
@@ -324,9 +339,11 @@ async function main() {
 
     // Separation is prescribed by the palette rather than fixed, so a character who
     // arrived with contrast keeps it. See `separationFor`.
+    // A recipe may pin either value; anything it does not pin stays prescribed.
     const boost = {
       ...DEFAULT_BOOST,
       separate: separationFor(measuredSnapshot.skin.primary, measuredSnapshot.hair.primary),
+      ...(recipe.boost ?? {}),
     };
     const measuredRamps = buildRamps(measuredSnapshot, NO_BOOST);
     const boostedRamps = buildRamps(working, boost);

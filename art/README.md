@@ -98,10 +98,41 @@ roster has no source painting to cut one from anyway.
 
 A face is the one thing worth cutting, because a face is irreducibly specific.
 
-## The editor is a copy
+## The editor is generated
 
-`editor/pigment-card.html` is a self-contained snapshot published as an artifact, with
-the head inlined as a data URI and the palette maths ported inline — artifacts run under
-a CSP that blocks every external fetch. It is kept here so the tool is in version
-control, but it does **not** import from `src/`. If the ramp maths in
-`src/fighter/palette/ramp.js` changes, this file needs the same change.
+`editor/pigment-card.html` is built by `npm run buildcard`. **Do not hand-edit it** —
+change `scripts/buildcard.js` and regenerate.
+
+It has to be self-contained, because it is published as an artifact and artifacts run
+under a CSP that blocks every external fetch. It used to solve that by carrying a
+hand-copied version of the ramp maths, which is two implementations of one derivation
+drifting apart every time either changed. The generator inlines the *real* modules
+instead — it reads `color.js`, `paletteSchema.js` and `ramp.js` off disk, strips the
+module syntax and concatenates them — so there is one implementation and the card cannot
+fall behind the build.
+
+### The loop
+
+```
+npm run buildkit      # measure, cut, quantise, pack
+npm run kitpreview    # look at the result           -> art/preview/kits.png
+npm run buildcard     # rebuild the editor           -> art/editor/pigment-card.html
+```
+
+Open the card, change colours by eye, and it prints an `overrides` block. Paste that into
+the character's recipe and rebuild:
+
+```js
+overrides: {
+  'hair.primary': '#6A5040',
+},
+```
+
+Overrides are applied after measurement, so `measured` still records exactly what the
+painting said and the diff shows precisely which values were chosen by hand rather than
+sampled. `boost: { spread, separate }` can be pinned the same way when the prescribed
+separation is not what you want.
+
+Previews in the card repaint the build's existing colour assignment rather than
+re-quantising, which is exact for a palette tweak but not for an edit large enough to
+send pixels to a different material. Rebuild to see that.

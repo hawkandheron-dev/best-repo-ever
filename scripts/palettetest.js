@@ -837,6 +837,21 @@ check('every silhouette lies inside its crop', RESOLVED.every(({ shape }) => {
   const [cx, cy, cw, ch] = shape.crop;
   return shape.mask.some(([x, y]) => x >= cx && x <= cx + cw && y >= cy && y <= cy + ch);
 }));
+// Overrides are how an edit made by eye in the pigment card gets back into the build.
+// A typo here silently ships a wrong colour, since there is nothing to compare it to.
+check('every override names a real role and a real colour', RECIPES.every(
+  (r) => Object.entries(r.overrides ?? {}).every(([path, hex]) => {
+    if (!PALETTE_ROLES.some((role) => role.path === path)) return false;
+    try { hexToRgb(hex); return true; } catch { return false; }
+  }),
+));
+check('every pinned boost is a sane pair of numbers', RECIPES.every((r) => {
+  if (!r.boost) return true;
+  const keys = Object.keys(r.boost);
+  return keys.length > 0
+    && keys.every((k) => ['spread', 'separate', 'floor'].includes(k))
+    && Object.values(r.boost).every((v) => Number.isFinite(v) && v >= 0);
+}));
 check('every element colour is a hex value', RECIPES.every((r) => {
   if (!r.element_color) return true;
   try { hexToRgb(r.element_color); return true; } catch { return false; }
