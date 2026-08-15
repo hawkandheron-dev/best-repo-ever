@@ -1,0 +1,1718 @@
+<title>Pixel Studio</title>
+<style>
+  :root {
+    --paper: #E8E9E6; --panel: #F2F3F0; --sunk: #DEE0DC; --rule: #C7CAC4;
+    --ink: #191C1A; --muted: #676B67; --signal: #1F5A66; --alarm: #8C3A1B;
+    --grid: rgba(25, 28, 26, 0.16);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #141614; --panel: #1C1F1D; --sunk: #101210; --rule: #2F332F;
+      --ink: #E5E7E3; --muted: #8D928D; --signal: #74B4C0; --alarm: #D98A5F;
+      --grid: rgba(229, 231, 227, 0.14);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #141614; --panel: #1C1F1D; --sunk: #101210; --rule: #2F332F;
+    --ink: #E5E7E3; --muted: #8D928D; --signal: #74B4C0; --alarm: #D98A5F;
+    --grid: rgba(229, 231, 227, 0.14);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 1320px; margin: 0 auto; padding: 34px 26px 90px; }
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 13px; }
+  h1 { margin: 0; font-size: 29px; font-weight: 620; letter-spacing: -0.022em; }
+  .standfirst { margin: 7px 0 0; color: var(--muted); max-width: 68ch; font-size: 14px; }
+
+  .lbl {
+    font: 500 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  }
+
+  .who { display: flex; border-bottom: 1px solid var(--rule); }
+  .who button {
+    appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; padding: 12px 17px; cursor: pointer; color: var(--muted);
+    font: 500 13px ui-sans-serif, system-ui, sans-serif;
+  }
+  .who button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--signal); }
+  .who button:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
+
+  .cols { display: grid; grid-template-columns: 214px minmax(0, 1fr) 250px; gap: 26px; padding-top: 24px; }
+  @media (max-width: 1100px) { .cols { grid-template-columns: 1fr; } }
+
+  /* ── Slot list ── */
+  .slots { display: grid; gap: 1px; align-content: start; }
+  .slotgroup { margin-top: 12px; }
+  .slotgroup:first-child { margin-top: 0; }
+  .slots button {
+    width: 100%; text-align: left; cursor: pointer; padding: 7px 9px;
+    border: 1px solid transparent; border-bottom-color: var(--rule); background: none; color: var(--ink);
+    font: 13px ui-sans-serif, system-ui, sans-serif;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .slots button[aria-current="true"] { background: var(--signal); border-color: var(--signal); color: var(--paper); }
+  .slots button:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rule); flex: none; }
+  .dot.on { background: var(--signal); }
+  .slots button[aria-current="true"] .dot { background: var(--paper); }
+  .slots button[aria-current="true"] .dot:not(.on) { background: rgba(255,255,255,0.35); }
+
+  /* ── Canvas ── */
+  .easel {
+    display: flex; justify-content: center; align-items: center; padding: 20px;
+    border: 1px solid var(--rule); background: var(--sunk); overflow: auto;
+  }
+  #grid { image-rendering: pixelated; cursor: crosshair; touch-action: none; display: block; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .toolbar button {
+    font: 500 12px ui-sans-serif, system-ui, sans-serif; padding: 7px 11px; cursor: pointer;
+    border: 1px solid var(--rule); background: var(--panel); color: var(--ink);
+  }
+  .toolbar button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .toolbar button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .toolbar .sep { width: 1px; background: var(--rule); margin: 0 4px; }
+
+  .readout {
+    margin-top: 10px; font: 11px ui-monospace, Menlo, monospace;
+    color: var(--muted); font-variant-numeric: tabular-nums;
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+
+  /* ── Inks ── */
+  .inks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+  .inks button {
+    position: relative; height: 34px; cursor: pointer; border: 1px solid var(--rule); padding: 0;
+    font: 500 9px ui-monospace, Menlo, monospace; color: var(--ink);
+  }
+  .inks button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; z-index: 1; }
+  .inks button:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+  .inks .key { position: absolute; left: 3px; top: 2px; opacity: 0.65; }
+  .inkname { margin-top: 8px; font-size: 12px; color: var(--muted); min-height: 1.3em; }
+
+  .stagebox { margin-top: 20px; border: 1px solid var(--rule); background: #2A3A4A; padding: 14px; display: flex; justify-content: center; }
+  #figure { image-rendering: pixelated; display: block; }
+
+  .flags { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .flags li { font-size: 12.5px; padding-left: 12px; border-left: 2px solid var(--alarm); }
+  .flags li.calm { border-left-color: var(--rule); color: var(--muted); }
+
+  .acts { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+  .acts button {
+    font: 500 12px ui-sans-serif, system-ui, sans-serif; padding: 8px 12px; cursor: pointer;
+    border: 1px solid var(--rule); background: var(--panel); color: var(--ink);
+  }
+  .acts button.go { background: var(--signal); border-color: var(--signal); color: var(--paper); }
+  pre {
+    margin: 14px 0 0; padding: 12px; background: var(--panel); border: 1px solid var(--rule);
+    font: 11px/1.5 ui-monospace, Menlo, monospace; max-height: 260px; overflow: auto; white-space: pre;
+  }
+</style>
+
+<div class="sheet">
+  <header class="masthead">
+    <h1>Pixel Studio</h1>
+    <p class="standfirst">
+      Draw the body and garment parts once. You pick an <strong>ink</strong> &mdash; a material
+      and a stop, not a colour &mdash; so the same drawing becomes Aristotle&rsquo;s blue himation
+      or Heraclitus&rsquo;s mauve tunic. Switch philosopher above the canvas to see it repaint.
+    </p>
+  </header>
+
+  <div class="who" id="who" role="tablist"></div>
+
+  <div class="cols">
+    <section>
+      <span class="lbl">Parts</span>
+      <div class="slots" id="slots"></div>
+    </section>
+
+    <section>
+      <div class="easel"><canvas id="grid"></canvas></div>
+      <div class="toolbar" id="toolbar"></div>
+      <div class="readout">
+        <span id="where">&nbsp;</span>
+        <span id="dims">&nbsp;</span>
+      </div>
+      <ul class="flags" id="flags"></ul>
+    </section>
+
+    <section>
+      <span class="lbl">Ink</span>
+      <div class="inks" id="inks"></div>
+      <div class="inkname" id="inkname"></div>
+
+      <span class="lbl">At rest</span>
+      <div class="stagebox"><canvas id="figure"></canvas></div>
+
+      <div class="acts">
+        <button type="button" id="copy" class="go">Copy all parts</button>
+        <button type="button" id="clear">Clear part</button>
+      </div>
+      <pre id="out"></pre>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ── src/fighter/palette/color.js ── */
+/**
+ * Colour-space conversions and small colour utilities.
+ *
+ * Pure and DOM-free so the headless kit builder and the browser both use the same
+ * maths. Previously `hexToHsv`/`hsvToHex` lived privately inside
+ * `src/components/SpriteCanvas/GradientColorPicker.jsx` — the only colour maths in
+ * the repo. They belong here, with one implementation rather than two.
+ */
+
+/** '#rrggbb' → [r, g, b], each 0-255. Tolerates a missing '#' and 3-digit shorthand. */
+function hexToRgb(hex) {
+  let h = String(hex).trim().replace(/^#/, '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) throw new Error(`Not a hex colour: ${hex}`);
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+/** [r, g, b] → '#RRGGBB', clamped and rounded. */
+function rgbToHex(rgb) {
+  return `#${rgb
+    .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase()}`;
+}
+
+/** [r, g, b] 0-255 → [h 0-360, s 0-1, v 0-1]. */
+function rgbToHsv([r, g, b]) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const d = max - min;
+
+  let h = 0;
+  if (d !== 0) {
+    if (max === rn) h = ((gn - bn) / d) % 6;
+    else if (max === gn) h = (bn - rn) / d + 2;
+    else h = (rn - gn) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return [h, max === 0 ? 0 : d / max, max];
+}
+
+/** [h, s, v] → [r, g, b] 0-255. */
+function hsvToRgb([h, s, v]) {
+  const c = v * s;
+  const hh = (((h % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hh % 2) - 1));
+  const seg = [
+    [c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x],
+  ][Math.floor(hh) % 6];
+  const m = v - c;
+  return seg.map((n) => (n + m) * 255);
+}
+
+const hexToHsv = (hex) => rgbToHsv(hexToRgb(hex));
+const hsvToHex = (hsv) => rgbToHex(hsvToRgb(hsv));
+
+/** Rec. 601 luma, 0-255. Green dominates because the eye weights it most. */
+function luminance([r, g, b]) {
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+/**
+ * Rotate a hue toward `target` by at most `amount` degrees, taking the short way
+ * around the wheel.
+ *
+ * Warming a colour as it lightens and cooling it as it darkens is what separates a
+ * hand-authored pixel ramp from a flat lightness multiply — real pigment shifts hue
+ * under light, and ramps that don't look plastic.
+ */
+function towardHue(h, target, amount) {
+  const delta = (((target - h + 540) % 360) - 180);
+  const moved = h + Math.sign(delta) * Math.min(Math.abs(delta), amount);
+  // Normalised to [0, 360). `hsvToRgb` would cope with -5, but callers that compare
+  // hues to decide whether a stop drifted warm or cool would not.
+  return ((moved % 360) + 360) % 360;
+}
+
+/**
+ * Perceptually weighted squared distance between two RGB triples.
+ *
+ * Cheap stand-in for a Lab metric: weights green heaviest, then blue, then red,
+ * which tracks perceived difference far better than plain Euclidean RGB and costs
+ * three multiplies. Squared, so it is only ever compared, never reported.
+ */
+function colorDistance(a, b) {
+  const dr = a[0] - b[0];
+  const dg = a[1] - b[1];
+  const db = a[2] - b[2];
+  return 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+}
+
+/** Multiply a colour's value channel — used to push far-side limbs back. */
+function darken(rgb, factor) {
+  const [h, s, v] = rgbToHsv(rgb);
+  return hsvToRgb([h, s, Math.max(0, Math.min(1, v * factor))]);
+}
+
+/** Median of a numeric array. Mutates a copy, not the input. */
+function median(values) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[sorted.length >> 1];
+}
+
+/* ── src/fighter/palette/paletteSchema.js ── */
+/**
+ * The character palette — ten colour roles that drive everything a fighter is made of.
+ *
+ * Shared limb sprites are drawn in these colours, and the head cut from the source
+ * painting is *quantised* to them. That second use is the one that makes the hybrid
+ * work: a fresco head reduced to the same ten colours as the body reads as part of
+ * the same sprite instead of a photograph pasted onto a cartoon.
+ *
+ * Only base colours are stored. Light and shadow stops are derived in `ramp.js`,
+ * because storing three tones for each of three garment materials plus skin plus
+ * hair would be fifteen numbers to hand-edit whose relationships are mechanical.
+ */
+
+
+const PALETTE_VERSION = 1;
+
+/** Every role, in the order the editor should present them. */
+const PALETTE_ROLES = [
+  { path: 'skin.primary', label: 'Skin base', group: 'Skin' },
+  { path: 'skin.secondary', label: 'Skin shadow', group: 'Skin' },
+  { path: 'hair.primary', label: 'Hair base', group: 'Hair' },
+  { path: 'hair.secondary', label: 'Hair shadow', group: 'Hair' },
+  { path: 'outfit.primary', label: 'Outer garment', group: 'Outfit' },
+  { path: 'outfit.secondary', label: 'Under garment', group: 'Outfit' },
+  { path: 'outfit.tertiary', label: 'Trim & hems', group: 'Outfit' },
+  { path: 'outline', label: 'Outline', group: 'Other' },
+  { path: 'accent', label: 'Leather & props', group: 'Other' },
+  { path: 'element', label: 'Elemental', group: 'Other' },
+];
+
+/**
+ * Materials that get a three-stop ramp, and where each takes its base and shadow.
+ *
+ * Skin and hair store two colours, so their shadow is measured rather than derived
+ * and only the light stop is invented. Garment materials store one colour each and
+ * derive both stops.
+ */
+const MATERIALS = [
+  { id: 'skin', base: 'skin.primary', shadow: 'skin.secondary' },
+  { id: 'hair', base: 'hair.primary', shadow: 'hair.secondary' },
+  { id: 'outfitP', base: 'outfit.primary', shadow: null },
+  { id: 'outfitS', base: 'outfit.secondary', shadow: null },
+  { id: 'outfitT', base: 'outfit.tertiary', shadow: null },
+];
+
+/**
+ * How far the legibility pass pushes measured colours around.
+ *
+ * Frescoes are low-contrast to begin with and downsampling averages them flatter
+ * still, so faithfully measured colours quantise to mush — on the Aristotle crop,
+ * measured skin and hair were 21 luma apart and indistinguishable at sprite size.
+ * `spread` widens each ramp around its base; `separate` pulls whole materials apart,
+ * lifting skin and dropping hair. Defaults are the values that made that head read.
+ */
+const DEFAULT_BOOST = { spread: 1.7, separate: 1 };
+
+/** No boost at all — the measured palette, used as-is. */
+const NO_BOOST = { spread: 1, separate: 0 };
+
+function createPalette(overrides = {}) {
+  return {
+    skin: { primary: '#D3A175', secondary: '#A87F58' },
+    hair: { primary: '#8A6E4A', secondary: '#5E4A32' },
+    outfit: { primary: '#9FAFC1', secondary: '#856848', tertiary: '#C6A46A' },
+    outline: '#3A2E22',
+    accent: '#8C7259',
+    element: '#C0552C',
+    ...overrides,
+  };
+}
+
+/** Read a dotted role path out of a palette. */
+function getRole(palette, path) {
+  return path.split('.').reduce((node, key) => node?.[key], palette);
+}
+
+/** Return a copy of `palette` with one dotted role path replaced. */
+function setRole(palette, path, value) {
+  const keys = path.split('.');
+  if (keys.length === 1) return { ...palette, [keys[0]]: value };
+  const [head, ...rest] = keys;
+  return { ...palette, [head]: setRole(palette[head] ?? {}, rest.join('.'), value) };
+}
+
+/**
+ * Check a palette is usable. Returns human-readable problems, never throws — the
+ * editor calls this on every keystroke.
+ */
+function validatePalette(palette) {
+  const problems = [];
+  if (!palette || typeof palette !== 'object') return ['Palette is not an object'];
+
+  for (const { path, label } of PALETTE_ROLES) {
+    const value = getRole(palette, path);
+    if (typeof value !== 'string') {
+      problems.push(`${label} (${path}) is missing`);
+      continue;
+    }
+    try {
+      hexToRgb(value);
+    } catch {
+      problems.push(`${label} (${path}) is not a hex colour: ${value}`);
+    }
+  }
+  if (problems.length > 0) return problems;
+
+  // The outline has to be the darkest thing on the sprite or it stops reading as an
+  // edge and starts reading as a stripe.
+  const outlineLuma = luminance(hexToRgb(palette.outline));
+  for (const { id, base } of MATERIALS) {
+    const baseLuma = luminance(hexToRgb(getRole(palette, base)));
+    if (outlineLuma >= baseLuma) {
+      problems.push(`Outline is not darker than ${id} base — it will read as a stripe, not an edge`);
+    }
+  }
+
+  // Two roles landing on the same colour silently merges two materials.
+  const seen = new Map();
+  for (const { path, label } of PALETTE_ROLES) {
+    if (path === 'element') continue; // element is FX-only; collisions there are harmless
+    const value = getRole(palette, path).toUpperCase();
+    if (seen.has(value)) problems.push(`${label} and ${seen.get(value)} are the same colour (${value})`);
+    else seen.set(value, label);
+  }
+
+  return problems;
+}
+
+/* ── src/fighter/palette/ramp.js ── */
+/**
+ * Turning stored base colours into three-stop shading ramps.
+ *
+ * One global light direction for every part on every character. Inconsistent light
+ * across parts is the fastest way to make a rigged figure look like assembled clip
+ * art rather than one drawing.
+ */
+
+
+/** Light comes from upper-front: screen upper-right when the fighter faces right. */
+const LIGHT_DIRECTION = { x: 0.55, y: 0.83 };
+
+/** Hues that light and shadow drift toward — warm sunlight, cool ambient fill. */
+const WARM_HUE = 40;
+const COOL_HUE = 225;
+
+/** Far-side limbs sit back by this much, so depth needs no extra stored colours. */
+const DEPTH_FACTOR = 0.78;
+
+/**
+ * How far apart skin and hair have to sit before they stop blending at sprite size.
+ *
+ * Exported because two things need to agree about it: the check that reports a head as
+ * mush, and the rule that decides how hard to push the two apart in the first place.
+ */
+const MIN_SKIN_HAIR_GAP = 40;
+
+/**
+ * How much separation a palette needs, given how much it already has.
+ *
+ * `separate` drops hair by up to a third of its value, which rescues a faded fresco
+ * where skin and hair were painted almost the same tone — Aristotle's differ by 16 luma
+ * — and ruins anything that arrived with real contrast. A bust-derived head is mostly
+ * hair, so darkening it unconditionally turns three quarters of the sprite black.
+ *
+ * So: apply exactly as much as the gap is short by, and none at all once it is met.
+ * Rounded, because the build has to be reproducible to the byte.
+ */
+function separationFor(skinHex, hairHex, target = MIN_SKIN_HAIR_GAP) {
+  const gap = Math.abs(luminance(hexToRgb(skinHex)) - luminance(hexToRgb(hairHex)));
+  return Math.round(Math.max(0, Math.min(1, (target - gap) / target)) * 100) / 100;
+}
+
+/**
+ * Build a [light, base, shadow] ramp from one base colour.
+ *
+ * `boost.spread` widens the ramp around its base. `boost.separate` biases the base
+ * itself — positive lifts, negative drops — which is how skin and hair get pulled
+ * apart when a faded painting leaves them nearly the same value.
+ *
+ * A measured `shadowHex` is used verbatim when there is no boost, because a real
+ * sampled shadow beats an invented one. Once boosting is on, the shadow is derived
+ * so it stays consistent with the widened base.
+ */
+function buildRamp(baseHex, shadowHex, { spread = 1, valueBias = 0 } = {}) {
+  const [h, s, v] = rgbToHsv(hexToRgb(baseHex));
+  const baseV = Math.max(0.05, Math.min(1, v * (1 + valueBias)));
+  const base = hsvToRgb([h, s, baseV]);
+
+  const light = hsvToRgb([
+    towardHue(h, WARM_HUE, 8),
+    Math.max(0, s * (1 - 0.12 * spread)),
+    Math.min(1, baseV * (1 + 0.18 * spread)),
+  ]);
+
+  const shadow = shadowHex && spread === 1 && valueBias === 0
+    ? hexToRgb(shadowHex)
+    : hsvToRgb([
+      towardHue(h, COOL_HUE, 10),
+      Math.min(1, s * (1 + 0.10 * spread)),
+      baseV * (1 - 0.22 * spread),
+    ]);
+
+  return [light, base, shadow];
+}
+
+/**
+ * The darkest a material's base may be and still show three distinct stops.
+ *
+ * Below this the ramp has no room to descend. The stops are multiplicative on value, so
+ * a base at v=0.24 puts its shadow at v=0.15 and its light at v=0.31 — a span the eye
+ * cannot resolve at 49 px, and one the outline then has to fit underneath as well. The
+ * material stops being three colours and becomes one dark smear.
+ *
+ * This bites hardest exactly where the roster lives. Raphael painted Heraclitus with
+ * near-black hair, and a bust-derived head is mostly hair: measured faithfully and left
+ * alone, four fifths of the sprite came out as a single black mass. Renaissance frescoes
+ * and Roman busts are full of dark-haired Mediterranean men, so this recurs.
+ *
+ * Lifting is the same kind of adjustment as `spread` and `separate` — an accommodation
+ * to sprite size, not a claim about the painting. `measured` keeps the truth.
+ */
+const MIN_MATERIAL_VALUE = 0.34;
+
+/**
+ * All five material ramps for a palette.
+ *
+ * Skin lifts and hair drops under `separate`, since those two are the pair that
+ * actually collide on a faded fresco — a garment sitting close to skin in value is
+ * usually fine, because the silhouette separates them anyway.
+ *
+ * Whatever `separate` decides, no material is allowed to end up below the floor.
+ */
+function buildRamps(palette, boost = DEFAULT_BOOST) {
+  const { spread = 1, separate = 0, floor = MIN_MATERIAL_VALUE } = boost;
+  const bias = { skin: +0.06 * separate, hair: -0.30 * separate };
+
+  const ramps = {};
+  for (const { id, base, shadow } of MATERIALS) {
+    const baseHex = getRole(palette, base);
+    const v = rgbToHsv(hexToRgb(baseHex))[2];
+    const wanted = Math.max(v * (1 + (bias[id] ?? 0)), floor);
+    ramps[id] = buildRamp(
+      baseHex,
+      shadow ? getRole(palette, shadow) : null,
+      // A pure black base has no hue or value to scale, so leave it where it is rather
+      // than dividing by zero on the way to somewhere arbitrary.
+      { spread, valueBias: v > 0 ? wanted / v - 1 : 0 },
+    );
+  }
+  return ramps;
+}
+
+/** How far a material had to be lifted off the floor, for the build to report. */
+function liftedMaterials(palette, boost = DEFAULT_BOOST) {
+  const { separate = 0, floor = MIN_MATERIAL_VALUE } = boost;
+  const bias = { skin: +0.06 * separate, hair: -0.30 * separate };
+  return MATERIALS
+    .map(({ id, base }) => {
+      const v = rgbToHsv(hexToRgb(getRole(palette, base)))[2];
+      const after = v * (1 + (bias[id] ?? 0));
+      return { id, from: after, to: floor };
+    })
+    .filter((m) => m.from < floor && m.from > 0);
+}
+
+/** The same ramps pushed back for far-side limbs. */
+function depthRamps(ramps, factor = DEPTH_FACTOR) {
+  const out = {};
+  for (const [id, stops] of Object.entries(ramps)) {
+    out[id] = stops.map((rgb) => darken(rgb, factor));
+  }
+  return out;
+}
+
+/**
+ * Which materials each kind of sprite is allowed to be made of.
+ *
+ * This matters more than it looks. Offering every material as a quantisation target
+ * lets colours from one steal pixels from another whenever they are close — on
+ * Aristotle, whose skin, hair, chiton and gold trim all sit in the same warm-brown
+ * band, the unrestricted palette mapped a quarter of his FACE to chiton tones. A head
+ * contains skin, hair, an outline and a collar; it contains no hem and no sandal.
+ */
+const SPRITE_MATERIALS = {
+  head: ['skin', 'hair', 'outfitP'],
+  garment: ['outfitP', 'outfitS', 'outfitT'],
+  accessory: ['outfitT', 'accent'],
+  limb: ['skin'],
+  robe: ['outfitP', 'outfitS', 'outfitT'],
+};
+
+/**
+ * Flatten ramps into the target list a quantiser matches against.
+ *
+ * `materials` restricts which ramps are offered; omit it for all five. The outline is
+ * always included, since every sprite has an edge. `accent` is included only when it
+ * is not already a listed material, so leather and props stay available without
+ * competing for skin.
+ */
+function quantisationTargets(palette, boost = DEFAULT_BOOST, { materials = null } = {}) {
+  const ramps = buildRamps(palette, boost);
+  const stopNames = ['light', 'base', 'shadow'];
+  const allowed = materials ? new Set(materials) : null;
+  const targets = [];
+
+  for (const [id, stops] of Object.entries(ramps)) {
+    if (allowed && !allowed.has(id)) continue;
+    stops.forEach((rgb, i) => targets.push({ name: `${id}.${stopNames[i]}`, rgb }));
+  }
+  targets.push({ name: 'outline', rgb: hexToRgb(palette.outline) });
+  if (!allowed || allowed.has('accent')) {
+    targets.push({ name: 'accent', rgb: hexToRgb(palette.accent) });
+  }
+  return targets;
+}
+
+/**
+ * How much darker than the darkest material shadow the outline has to sit.
+ *
+ * A fixed 28 luma is the right answer for a faded fresco, whose shadows sit in the
+ * mid-tones. It is an impossible answer for a figure painted with near-black hair:
+ * Raphael's Heraclitus has a darkest shadow at luma 26, so "28 below" is asking for a
+ * negative luminance, and the naive rule spent forty iterations grinding a sampled
+ * colour down to #010001 — pure black, the one thing the sampling exists to avoid — and
+ * then reported failure anyway.
+ *
+ * So the demand is capped at a share of the room that actually exists below the darkest
+ * shadow. Sixty per cent of the way to black is a separation the eye reads, and it
+ * leaves enough of the sampled colour intact to still have a hue.
+ */
+const OUTLINE_HEADROOM = 0.6;
+
+function outlineGapTarget(ramps, minOutlineGap = 28) {
+  const darkestShadow = Math.min(...Object.values(ramps).map((stops) => luminance(stops[2])));
+  return { darkestShadow, target: Math.min(minOutlineGap, darkestShadow * OUTLINE_HEADROOM) };
+}
+
+/**
+ * Darken a measured outline until it sits clear of the darkest material shadow.
+ *
+ * Sampling the darkest pixels of a painting gives an honest colour that does not
+ * work as an outline. Rather than substituting black — which no fresco contains and
+ * which makes a sprite look like a cartoon pasted on the stage — keep the sampled hue
+ * and push its value down until the silhouette reads.
+ */
+function deepenOutline(outlineHex, ramps, { minOutlineGap = 28, margin = 3 } = {}) {
+  const { darkestShadow, target } = outlineGapTarget(ramps, minOutlineGap);
+  let rgb = hexToRgb(outlineHex);
+  let guard = 0;
+  // Aim a little past the threshold: the return value is a rounded hex, and rounding
+  // down can otherwise land just under the gap this loop was trying to clear.
+  while (darkestShadow - luminance(rgb) < target + margin && guard < 40) {
+    rgb = darken(rgb, 0.92);
+    guard++;
+  }
+  return rgbToHex(rgb);
+}
+
+/** Hex view of the ramps, for display and for writing into a kit file. */
+function rampsToHex(ramps) {
+  const out = {};
+  for (const [id, stops] of Object.entries(ramps)) {
+    out[id] = { light: rgbToHex(stops[0]), base: rgbToHex(stops[1]), shadow: rgbToHex(stops[2]) };
+  }
+  return out;
+}
+
+/**
+ * Sanity checks on derived ramps: each must descend in luminance from light to
+ * shadow, and skin must stay clear of hair or the head turns to mush at sprite size.
+ */
+function checkRamps(ramps, { minSkinHairGap = MIN_SKIN_HAIR_GAP, outline = null, minOutlineGap = 28 } = {}) {
+  const problems = [];
+
+  // "Darker than the bases" is not the same as "dark enough to read as an edge". A
+  // fresco's darkest pixels are a mid-brown, and an outline that close to the hair
+  // shadow makes the silhouette dissolve into the stage behind it.
+  if (outline) {
+    const { darkestShadow, target } = outlineGapTarget(ramps, minOutlineGap);
+    const gap = darkestShadow - luminance(outline);
+    if (gap < target) {
+      problems.push(
+        `Outline is only ${gap.toFixed(0)} luma below the darkest shadow (want ${target.toFixed(0)}+) — the silhouette will not read`,
+      );
+    }
+  }
+
+  for (const [id, stops] of Object.entries(ramps)) {
+    const [light, base, shadow] = stops.map(luminance);
+    if (!(light > base && base > shadow)) {
+      problems.push(
+        `${id} ramp is not monotonic: light ${light.toFixed(0)}, base ${base.toFixed(0)}, shadow ${shadow.toFixed(0)}`,
+      );
+    }
+  }
+
+  if (ramps.skin && ramps.hair) {
+    const gap = Math.abs(luminance(ramps.skin[1]) - luminance(ramps.hair[1]));
+    if (gap < minSkinHairGap) {
+      problems.push(
+        `Skin and hair bases are only ${gap.toFixed(0)} luma apart (want ${minSkinHairGap}+) — they will blend at sprite size`,
+      );
+    }
+  }
+
+  return problems;
+}
+
+/* ── src/fighter/rig/rigSchema.js ── */
+/**
+ * The `mews.rig` format — skeleton, cut-out parts, and animation clips.
+ *
+ * This module is art-only by design: it contains NO gameplay numbers.  Hitboxes,
+ * damage and stun live in `src/fighter/data/` instead, so that the simulation and
+ * its headless tests never need to load an image.  (A rig implies an atlas PNG,
+ * and `createImageBitmap` does not exist in Node.)
+ *
+ * Two naming rules that are easy to get wrong and expensive to fix later:
+ *
+ *  1. Limbs are `.f` / `.b` for camera-NEAR / camera-FAR, never left/right.
+ *     In a side view the near arm stays near when the fighter turns around, so
+ *     z-order is stable across a facing flip and mirroring is purely x → -x.
+ *  2. Positions are rig space: origin at the feet, +x FORWARD, +y UP.
+ */
+
+const SCHEMA_VERSION = 1;
+
+/** Nominal standing height in rig units, used to normalise scale across characters. */
+const NOMINAL_HEIGHT = 340;
+
+/**
+ * Proportions, at 1:4.5 — head art is NOMINAL_HEIGHT / 4.5, which at a 220 px
+ * fighter renders a 48 px head. That is the size at which a face cut from a painting
+ * reads as a specific person rather than merely "a bearded man"; below ~44 px the
+ * likeness is gone and only silhouette and palette distinguish characters.
+ */
+const HIP_STAND = 150;
+const HEAD_ART_HEIGHT = Math.round(NOMINAL_HEIGHT / 4.5);
+
+/**
+ * Hip heights the animation clips key against. Named so that re-proportioning costs
+ * one edit here rather than sixty-eight literals across `standardClips.js` — which
+ * is exactly what the move from 108 to 150 cost before these existed.
+ */
+/**
+ * The canonical sprite scale: a fighter is FIGHTER_PX tall on screen, so every part's
+ * pixel size follows from its size in rig units. Sprites are authored at exactly this
+ * scale and drawn 1:1, because a non-integer rescale at draw time is what turns crisp
+ * pixel art into mush.
+ */
+const FIGHTER_PX = 220;
+const STAGE_WIDTH = 960;   // 1080p / 2
+const STAGE_HEIGHT = 540;
+const PX_PER_UNIT = FIGHTER_PX / NOMINAL_HEIGHT;
+const HEAD_PX = Math.round(HEAD_ART_HEIGHT * PX_PER_UNIT);
+
+const HIP_CROUCH = 86;
+const HIP_SQUAT = 108;   // pre-jump compression
+const HIP_LAND = 103;    // landing absorption
+const HIP_SWEEP = 61;    // lowest crouching attack
+const HIP_DOWN = 22;     // lying on the ground: body thickness, not leg length
+
+/**
+ * The standard humanoid skeleton for a side-view fighter: 23 bones.
+ *
+ * `pos` is the bone's origin relative to its parent; `rest` is its rest angle in
+ * degrees.  A limb bone points along its own local +x, so an arm hanging down
+ * rests near -90°.  Child offsets double as bone lengths — `armF.fore` sitting at
+ * [46, 0] means the upper arm is 46 units long.
+ */
+const DEFAULT_SKELETON = [
+  { id: 'root', parent: null, pos: [0, 0], rest: 0 },
+  { id: 'pelvis', parent: 'root', pos: [0, HIP_STAND], rest: 0 },
+  { id: 'torso', parent: 'pelvis', pos: [0, 8], rest: 0 },
+  { id: 'chest', parent: 'torso', pos: [2, 56], rest: 0 },
+  { id: 'neck', parent: 'chest', pos: [4, 40], rest: 0 },
+  { id: 'head', parent: 'neck', pos: [2, 10], rest: 0 },
+
+  // Near arm (camera-side) — the one that throws most punches.
+  { id: 'armF.up', parent: 'chest', pos: [10, 34], rest: -75 },
+  { id: 'armF.fore', parent: 'armF.up', pos: [46, 0], rest: -20 },
+  { id: 'handF', parent: 'armF.fore', pos: [40, 0], rest: 0 },
+
+  // Far arm.
+  { id: 'armB.up', parent: 'chest', pos: [-6, 32], rest: -95 },
+  { id: 'armB.fore', parent: 'armB.up', pos: [46, 0], rest: -15 },
+  { id: 'handB', parent: 'armB.fore', pos: [40, 0], rest: 0 },
+
+  // Near leg.  The chain thigh→shin→foot lands the foot at y ≈ 0.
+  { id: 'legF.thigh', parent: 'pelvis', pos: [8, -4], rest: -88 },
+  { id: 'legF.shin', parent: 'legF.thigh', pos: [76, 0], rest: -4 },
+  { id: 'footF', parent: 'legF.shin', pos: [70, 0], rest: 88 },
+
+  // Far leg.
+  { id: 'legB.thigh', parent: 'pelvis', pos: [-10, -4], rest: -92 },
+  { id: 'legB.shin', parent: 'legB.thigh', pos: [76, 0], rest: -6 },
+  { id: 'footB', parent: 'legB.shin', pos: [70, 0], rest: 92 },
+
+  // Drapery: a two-link chain so robes can swing independently of the legs.
+  { id: 'robeA', parent: 'pelvis', pos: [0, 4], rest: -90 },
+  { id: 'robeB', parent: 'robeA', pos: [77, 0], rest: 0 },
+
+  // Attachment points. These carry no art — FX and props anchor to them.
+  { id: 'fx.hand', parent: 'handF', pos: [18, 0], rest: 0 },
+  { id: 'fx.core', parent: 'chest', pos: [0, 20], rest: 0 },
+  { id: 'prop', parent: 'handB', pos: [12, 0], rest: 0 },
+];
+
+/** Animatable bone channels, with the value each falls back to when unkeyed. */
+const BONE_CHANNELS = {
+  rot: null, // null → fall back to the bone's `rest`
+  x: null, //  null → fall back to the bone's `pos[0]`
+  y: null, //  null → fall back to the bone's `pos[1]`
+  sx: 1,
+  sy: 1,
+  skx: 0,
+};
+
+/** Draw-order bands, so new parts can be slotted in without renumbering. */
+const Z = {
+  ARM_B: 10,
+  LEG_B: 12,
+  ROBE_B: 16,
+  TORSO: 20,
+  LEG_F: 24,
+  HEAD: 30,
+  ROBE_F: 34,
+  ARM_F: 40,
+  HAND_F: 42,
+  PROP: 46,
+  FX: 50,
+};
+
+/** A blank rig with the standard skeleton and no parts. */
+function createEmptyRig(id = 'untitled') {
+  return {
+    format: 'mews.rig',
+    version: SCHEMA_VERSION,
+    id,
+    name: '',
+    source: { title: '', artist: '', year: null, url: '', license: '', note: '' },
+    atlas: null,
+    space: { unitScale: 1, height: NOMINAL_HEIGHT },
+    bones: DEFAULT_SKELETON.map((b) => ({ ...b, pos: [...b.pos] })),
+    parts: [],
+    clips: {},
+  };
+}
+
+/** Index bones by id. */
+function boneMap(rig) {
+  const map = new Map();
+  for (const bone of rig.bones) map.set(bone.id, bone);
+  return map;
+}
+
+/**
+ * Bones ordered so that every bone appears after its parent.
+ * `composePose` relies on this to build world transforms in a single pass.
+ * Throws if the hierarchy contains a cycle or a missing parent.
+ */
+function boneOrder(rig) {
+  const map = boneMap(rig);
+  const order = [];
+  const state = new Map(); // id → 'visiting' | 'done'
+
+  const visit = (bone) => {
+    const seen = state.get(bone.id);
+    if (seen === 'done') return;
+    if (seen === 'visiting') throw new Error(`Bone hierarchy has a cycle at "${bone.id}"`);
+    state.set(bone.id, 'visiting');
+    if (bone.parent !== null) {
+      const parent = map.get(bone.parent);
+      if (!parent) throw new Error(`Bone "${bone.id}" has unknown parent "${bone.parent}"`);
+      visit(parent);
+    }
+    state.set(bone.id, 'done');
+    order.push(bone);
+  };
+
+  for (const bone of rig.bones) visit(bone);
+  return order;
+}
+
+/**
+ * Structural validation. Returns an array of human-readable problems, empty when
+ * the rig is sound.  Called by the studio on every export and by
+ * `scripts/framedata.js` in CI, so it must never throw on malformed input —
+ * report instead.
+ */
+function validateRig(rig) {
+  const problems = [];
+
+  if (!rig || typeof rig !== 'object') return ['Rig is not an object'];
+  if (rig.format !== 'mews.rig') problems.push(`Unexpected format "${rig.format}"`);
+  if (rig.version !== SCHEMA_VERSION) {
+    problems.push(`Schema version ${rig.version} (expected ${SCHEMA_VERSION})`);
+  }
+  if (!rig.id) problems.push('Rig has no id');
+
+  const bones = Array.isArray(rig.bones) ? rig.bones : [];
+  if (bones.length === 0) problems.push('Rig has no bones');
+
+  const seenBones = new Set();
+  for (const bone of bones) {
+    if (seenBones.has(bone.id)) problems.push(`Duplicate bone id "${bone.id}"`);
+    seenBones.add(bone.id);
+  }
+
+  // Hierarchy integrity: cycles and orphans both surface here.
+  try {
+    boneOrder(rig);
+  } catch (err) {
+    problems.push(err.message);
+  }
+
+  const seenParts = new Set();
+  for (const part of rig.parts ?? []) {
+    if (seenParts.has(part.id)) problems.push(`Duplicate part id "${part.id}"`);
+    seenParts.add(part.id);
+    if (!seenBones.has(part.bone)) {
+      problems.push(`Part "${part.id}" is bound to unknown bone "${part.bone}"`);
+    }
+    if (!part.region && !part.src) {
+      problems.push(`Part "${part.id}" has neither an atlas region nor a src`);
+    }
+    if (part.region && part.region.length !== 4) {
+      problems.push(`Part "${part.id}" region must be [x, y, w, h]`);
+    }
+  }
+
+  for (const [clipId, clip] of Object.entries(rig.clips ?? {})) {
+    if (!Number.isInteger(clip.frames) || clip.frames < 1) {
+      problems.push(`Clip "${clipId}" has invalid frame count ${clip.frames}`);
+      continue;
+    }
+    for (const [boneId, tracks] of Object.entries(clip.tracks ?? {})) {
+      if (!seenBones.has(boneId)) {
+        problems.push(`Clip "${clipId}" animates unknown bone "${boneId}"`);
+      }
+      for (const [channel, keys] of Object.entries(tracks)) {
+        if (!(channel in BONE_CHANNELS)) {
+          problems.push(`Clip "${clipId}" bone "${boneId}" has unknown channel "${channel}"`);
+        }
+        let prev = -1;
+        for (const key of keys) {
+          const [frame] = key;
+          if (frame < 0 || frame >= clip.frames) {
+            problems.push(
+              `Clip "${clipId}" ${boneId}.${channel} keys frame ${frame}, outside 0..${clip.frames - 1}`,
+            );
+          }
+          if (frame <= prev) {
+            problems.push(`Clip "${clipId}" ${boneId}.${channel} keys are not in frame order`);
+          }
+          prev = frame;
+        }
+      }
+    }
+    for (const partId of Object.keys(clip.parts ?? {})) {
+      if (!seenParts.has(partId)) {
+        problems.push(`Clip "${clipId}" animates unknown part "${partId}"`);
+      }
+    }
+  }
+
+  return problems;
+}
+
+/* ── src/fighter/parts/partSchema.js ── */
+/**
+ * The `mews.parts` format — body and garment sprites drawn once, coloured per character.
+ *
+ * A part is NOT a picture. It is a grid of INK indices: every pixel names a material and
+ * a stop on that material's ramp — `skin.base`, `outfitP.shadow`, `outline` — and never
+ * an actual colour. A kit's palette turns the same drawing into Aristotle's blue himation
+ * or Heraclitus's mauve tunic without either being redrawn.
+ *
+ * That indirection is the whole point of the roster. A dozen philosophers wearing
+ * variations on the same draped rectangle is a dozen palettes over a handful of shapes,
+ * not a dozen sprite sheets. It also means a palette edit in the pigment card reaches
+ * the whole figure, not just the head cut from a painting.
+ *
+ * Stored as one character per pixel, so a part is legible and diffable in the source
+ * tree. A reviewer can see a sleeve change in a pull request; they could not see it in
+ * base64.
+ *
+ * Authoring convention, inherited from the rig and easy to get backwards: parts are drawn
+ * in REST ORIENTATION — an upper arm hangs down, so you draw a vertical arm. The renderer
+ * counter-rotates by the bone's accumulated rest angle. Drawing along the bone's local
+ * axis instead would be tidier for the maths and much harder for a person.
+ */
+
+
+const PARTS_FORMAT = 'mews.parts';
+const PARTS_VERSION = 1;
+
+/**
+ * The ink legend.
+ *
+ * Three stops per material, plus the three colours that are not ramps. Chosen so a part
+ * reads as a picture in a monospace editor: digits climb through the body materials,
+ * letters through the garments, and the punctuation is what you would expect it to be.
+ */
+const INKS = {
+  '.': null,
+  '#': { role: 'outline' },
+  1: { material: 'skin', stop: 'shadow' },
+  2: { material: 'skin', stop: 'base' },
+  3: { material: 'skin', stop: 'light' },
+  4: { material: 'hair', stop: 'shadow' },
+  5: { material: 'hair', stop: 'base' },
+  6: { material: 'hair', stop: 'light' },
+  7: { material: 'outfitP', stop: 'shadow' },
+  8: { material: 'outfitP', stop: 'base' },
+  9: { material: 'outfitP', stop: 'light' },
+  a: { material: 'outfitS', stop: 'shadow' },
+  b: { material: 'outfitS', stop: 'base' },
+  c: { material: 'outfitS', stop: 'light' },
+  d: { material: 'outfitT', stop: 'shadow' },
+  e: { material: 'outfitT', stop: 'base' },
+  f: { material: 'outfitT', stop: 'light' },
+  x: { role: 'accent' },
+  z: { role: 'element' },
+};
+
+const TRANSPARENT = '.';
+
+/**
+ * Display order, stated rather than derived.
+ *
+ * `Object.keys` puts the digit keys first whatever order they were written in — they are
+ * integer-like — which scatters the transparency and outline chips into the middle of the
+ * garment ramps. An ink palette has to read as ramps.
+ */
+const INK_CHARS = [
+  '.', '#', 'x', 'z',
+  '1', '2', '3',
+  '4', '5', '6',
+  '7', '8', '9',
+  'a', 'b', 'c',
+  'd', 'e', 'f',
+];
+
+/** Human labels, for a palette strip that has to be picked from rather than memorised. */
+const INK_LABELS = {
+  '.': 'erase', '#': 'outline', x: 'accent', z: 'element',
+  1: 'skin shadow', 2: 'skin', 3: 'skin light',
+  4: 'hair shadow', 5: 'hair', 6: 'hair light',
+  7: 'garment shadow', 8: 'garment', 9: 'garment light',
+  a: 'under shadow', b: 'under', c: 'under light',
+  d: 'trim shadow', e: 'trim', f: 'trim light',
+};
+
+/** A bone's first drawable child — the joint its part has to reach. */
+function firstChild(boneId) {
+  return DEFAULT_SKELETON.find(
+    (b) => b.parent === boneId && !b.id.startsWith('fx.') && b.id !== 'prop',
+  ) ?? null;
+}
+
+/** Bone length in rig units: the distance to its first drawable child. */
+function boneLength(boneId) {
+  const child = firstChild(boneId);
+  return child ? Math.hypot(child.pos[0], child.pos[1]) : null;
+}
+
+/**
+ * Where a bone's child joint sits relative to its origin, in SCREEN pixels — x right,
+ * y down — with the bone at its rest angle.
+ *
+ * Not simply "length along local +x". That holds for limbs, whose children sit at
+ * [46, 0], and is flatly wrong for the spine, whose children sit at [2, 56]: assuming it
+ * drew the torso guide pointing sideways out of the hip. The child offset is expressed in
+ * the bone's own frame, so rotating it by the bone's accumulated rest angle gives the
+ * real direction for both.
+ */
+function childOffsetPx(boneId) {
+  const child = firstChild(boneId);
+  if (!child) return null;
+  const r = (restAngle(boneId) * Math.PI) / 180;
+  const [ox, oy] = child.pos;
+  return [
+    (ox * Math.cos(r) - oy * Math.sin(r)) * PX_PER_UNIT,
+    -(ox * Math.sin(r) + oy * Math.cos(r)) * PX_PER_UNIT,
+  ];
+}
+
+/** A bone's accumulated rest angle, walking up the parent chain. */
+function restAngle(boneId) {
+  let angle = 0;
+  let id = boneId;
+  while (id) {
+    const bone = DEFAULT_SKELETON.find((b) => b.id === id);
+    if (!bone) break;
+    angle += bone.rest;
+    id = bone.parent;
+  }
+  return angle;
+}
+
+const px = (units) => Math.round(units * PX_PER_UNIT);
+
+/**
+ * The canonical slots: one drawable part per visible bone, plus the swap-in fist and the
+ * two garment panels.
+ *
+ * `span` is the bone's own length in pixels — the distance the drawing has to cover to
+ * reach its child joint — and `w`/`h` are the canvas, deliberately larger. A garment
+ * flares past its bone, a fist is wider than its wrist, and a canvas cropped to the
+ * skeleton would make every silhouette a capsule again, which is exactly the problem
+ * these parts exist to solve.
+ *
+ * `pivot` is where the bone origin sits on the canvas, in pixels from the top-left. Every
+ * part hangs from that point, so it is the one coordinate that has to be right.
+ */
+function slot(id, bone, z, { w, h, pivotX, pivotY, group, label }) {
+  const length = boneLength(bone);
+  const reach = childOffsetPx(bone);
+  return {
+    id,
+    bone,
+    z,
+    group,
+    label,
+    w,
+    h,
+    pivot: [pivotX, pivotY],
+    span: length === null ? null : px(length),
+    /** Screen-space vector from the pivot to the child joint; null for an extremity. */
+    reach: reach === null ? null : [Math.round(reach[0]), Math.round(reach[1])],
+    rest: restAngle(bone),
+  };
+}
+
+const PART_SLOTS = [
+  // Far side first: the draw order is the z order, and seeing it listed that way is
+  // what stops a near forearm being drawn behind a far one.
+  slot('armB.up', 'armB.up', Z.ARM_B, { w: 22, h: 40, pivotX: 11, pivotY: 5, group: 'Far arm', label: 'Upper arm' }),
+  slot('armB.fore', 'armB.fore', Z.ARM_B + 1, { w: 20, h: 34, pivotX: 10, pivotY: 4, group: 'Far arm', label: 'Forearm' }),
+  slot('handB', 'handB', Z.ARM_B + 2, { w: 20, h: 22, pivotX: 10, pivotY: 4, group: 'Far arm', label: 'Hand' }),
+
+  slot('legB.thigh', 'legB.thigh', Z.LEG_B, { w: 28, h: 58, pivotX: 14, pivotY: 6, group: 'Far leg', label: 'Thigh' }),
+  slot('legB.shin', 'legB.shin', Z.LEG_B + 1, { w: 24, h: 54, pivotX: 12, pivotY: 4, group: 'Far leg', label: 'Shin' }),
+  slot('footB', 'footB', Z.LEG_B + 2, { w: 30, h: 18, pivotX: 8, pivotY: 9, group: 'Far leg', label: 'Foot' }),
+
+  slot('robeB', 'robeB', Z.ROBE_B, { w: 44, h: 44, pivotX: 22, pivotY: 4, group: 'Garment', label: 'Back panel' }),
+  slot('torso', 'torso', Z.TORSO, { w: 52, h: 56, pivotX: 26, pivotY: 44, group: 'Body', label: 'Torso' }),
+
+  slot('legF.thigh', 'legF.thigh', Z.LEG_F, { w: 30, h: 58, pivotX: 15, pivotY: 6, group: 'Near leg', label: 'Thigh' }),
+  slot('legF.shin', 'legF.shin', Z.LEG_F + 1, { w: 26, h: 54, pivotX: 13, pivotY: 4, group: 'Near leg', label: 'Shin' }),
+  slot('footF', 'footF', Z.LEG_F + 2, { w: 32, h: 18, pivotX: 9, pivotY: 9, group: 'Near leg', label: 'Foot' }),
+
+  slot('robeA', 'robeA', Z.ROBE_F, { w: 52, h: 60, pivotX: 26, pivotY: 5, group: 'Garment', label: 'Front panel' }),
+
+  slot('armF.up', 'armF.up', Z.ARM_F, { w: 24, h: 40, pivotX: 12, pivotY: 5, group: 'Near arm', label: 'Upper arm' }),
+  slot('armF.fore', 'armF.fore', Z.ARM_F + 1, { w: 22, h: 34, pivotX: 11, pivotY: 4, group: 'Near arm', label: 'Forearm' }),
+  slot('handF', 'handF', Z.HAND_F, { w: 22, h: 24, pivotX: 11, pivotY: 4, group: 'Near arm', label: 'Hand' }),
+  // The fist shares the hand's bone: the punch clips swap one for the other.
+  slot('fistF', 'handF', Z.HAND_F, { w: 24, h: 24, pivotX: 12, pivotY: 4, group: 'Near arm', label: 'Fist' }),
+];
+
+const findSlot = (id) => PART_SLOTS.find((s) => s.id === id) ?? null;
+
+/* ── Grids ─────────────────────────────────────────────────────────────────── */
+
+/** An empty part: every pixel transparent. */
+function createPart(slotId) {
+  const s = findSlot(slotId);
+  if (!s) throw new Error(`Unknown part slot "${slotId}"`);
+  return {
+    id: slotId,
+    bone: s.bone,
+    z: s.z,
+    pivot: [...s.pivot],
+    w: s.w,
+    h: s.h,
+    rows: Array.from({ length: s.h }, () => TRANSPARENT.repeat(s.w)),
+  };
+}
+
+function createPartsDocument(overrides = {}) {
+  return { format: PARTS_FORMAT, version: PARTS_VERSION, set: 'standard', parts: [], ...overrides };
+}
+
+/** Read one pixel's ink, or `.` when the coordinate is off the grid. */
+function inkAt(part, x, y) {
+  if (x < 0 || y < 0 || x >= part.w || y >= part.h) return TRANSPARENT;
+  return part.rows[y][x];
+}
+
+/** A copy of `part` with one pixel set. Pure, so an editor can keep an undo stack. */
+function setInk(part, x, y, ink) {
+  if (x < 0 || y < 0 || x >= part.w || y >= part.h) return part;
+  if (!(ink in INKS)) throw new Error(`Unknown ink "${ink}"`);
+  if (part.rows[y][x] === ink) return part;
+  const rows = [...part.rows];
+  rows[y] = rows[y].slice(0, x) + ink + rows[y].slice(x + 1);
+  return { ...part, rows };
+}
+
+/** Flood-fill from one pixel across every orthogonally connected pixel of its ink. */
+function fillInk(part, x, y, ink) {
+  const from = inkAt(part, x, y);
+  if (from === ink) return part;
+  const rows = part.rows.map((r) => r.split(''));
+  const stack = [[x, y]];
+  while (stack.length > 0) {
+    const [cx, cy] = stack.pop();
+    if (cx < 0 || cy < 0 || cx >= part.w || cy >= part.h) continue;
+    if (rows[cy][cx] !== from) continue;
+    rows[cy][cx] = ink;
+    stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+  }
+  return { ...part, rows: rows.map((r) => r.join('')) };
+}
+
+/**
+ * Paint the outline ink onto every filled pixel that touches transparency or the canvas
+ * edge — the same rule the head sprites use, so a drawn limb and a cut face carry the
+ * same weight of line.
+ */
+function autoOutline(part) {
+  const rows = part.rows.map((r) => r.split(''));
+  for (let y = 0; y < part.h; y++) {
+    for (let x = 0; x < part.w; x++) {
+      if (rows[y][x] === TRANSPARENT) continue;
+      const exposed = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        return nx < 0 || ny < 0 || nx >= part.w || ny >= part.h || part.rows[ny][nx] === TRANSPARENT;
+      });
+      if (exposed) rows[y][x] = '#';
+    }
+  }
+  return { ...part, rows: rows.map((r) => r.join('')) };
+}
+
+/** Mirror left-to-right. Useful for a symmetrical garment panel; wrong for a hand. */
+function mirrorPart(part) {
+  return {
+    ...part,
+    pivot: [part.w - 1 - part.pivot[0], part.pivot[1]],
+    rows: part.rows.map((r) => r.split('').reverse().join('')),
+  };
+}
+
+/** How many pixels of each ink a part uses — the fastest way to spot an unused stop. */
+function inkUsage(part) {
+  const counts = new Map();
+  for (const row of part.rows) {
+    for (const ch of row) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+  }
+  return counts;
+}
+
+const isEmpty = (part) => part.rows.every((r) => r === TRANSPARENT.repeat(part.w));
+
+/* ── Colouring ─────────────────────────────────────────────────────────────── */
+
+const STOP_AT = { light: 0, base: 1, shadow: 2 };
+
+/**
+ * Turn a part into pixels, given one character's ramps and palette.
+ *
+ * This is the payoff: the drawing is authored once and every kit renders it in its own
+ * colours. Returns the plain `{ width, height, data }` the rest of the palette pipeline
+ * uses, so a drawn part and a quantised head can be packed into the same sheet.
+ */
+function renderPart(part, ramps, palette) {
+  const data = new Uint8ClampedArray(part.w * part.h * 4);
+  for (let y = 0; y < part.h; y++) {
+    for (let x = 0; x < part.w; x++) {
+      const ink = part.rows[y][x];
+      const spec = INKS[ink];
+      if (!spec) continue;
+      const rgb = spec.role
+        ? hexToRgbLocal(palette[spec.role])
+        : ramps[spec.material]?.[STOP_AT[spec.stop]];
+      if (!rgb) continue;
+      const i = (y * part.w + x) * 4;
+      data[i] = rgb[0];
+      data[i + 1] = rgb[1];
+      data[i + 2] = rgb[2];
+      data[i + 3] = 255;
+    }
+  }
+  return { width: part.w, height: part.h, data };
+}
+
+// Local rather than imported: this module is inlined into the studio page, where a
+// second copy of the colour helpers would be one more thing able to drift.
+function hexToRgbLocal(hex) {
+  const s = String(hex).replace(/^#/, '');
+  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+}
+
+/* ── Validation ────────────────────────────────────────────────────────────── */
+
+/**
+ * Check a parts document. Reports rather than throws, because the studio calls this on
+ * every stroke.
+ */
+function validateParts(doc) {
+  const problems = [];
+  if (!doc || typeof doc !== 'object') return ['Parts document is not an object'];
+  if (doc.format !== PARTS_FORMAT) problems.push(`Unexpected format "${doc.format}"`);
+  if (doc.version !== PARTS_VERSION) problems.push(`Version ${doc.version} (expected ${PARTS_VERSION})`);
+  if (!Array.isArray(doc.parts)) return [...problems, 'parts is not an array'];
+
+  const seen = new Set();
+  for (const part of doc.parts) {
+    const who = part.id || '(unnamed)';
+    if (seen.has(part.id)) problems.push(`Duplicate part "${part.id}"`);
+    seen.add(part.id);
+
+    const s = findSlot(part.id);
+    if (!s) { problems.push(`${who} is not a known part slot`); continue; }
+    if (part.bone !== s.bone) problems.push(`${who} names bone "${part.bone}" but its slot is on "${s.bone}"`);
+    if (!DEFAULT_SKELETON.some((b) => b.id === part.bone)) problems.push(`${who} names a bone not in the skeleton`);
+
+    if (!Array.isArray(part.rows) || part.rows.length !== part.h) {
+      problems.push(`${who} has ${part.rows?.length ?? 0} rows but claims a height of ${part.h}`);
+      continue;
+    }
+    const wrong = part.rows.findIndex((r) => r.length !== part.w);
+    if (wrong >= 0) problems.push(`${who} row ${wrong} is ${part.rows[wrong].length} wide, expected ${part.w}`);
+
+    for (let y = 0; y < part.rows.length; y++) {
+      for (const ch of part.rows[y]) {
+        if (!(ch in INKS)) { problems.push(`${who} row ${y} uses unknown ink "${ch}"`); break; }
+      }
+    }
+
+    // A pivot off the canvas puts the bone origin outside the drawing, and the part
+    // hangs somewhere it was never drawn to be.
+    const [pvx, pvy] = part.pivot ?? [];
+    if (!Number.isFinite(pvx) || !Number.isFinite(pvy) || pvx < 0 || pvy < 0 || pvx >= part.w || pvy >= part.h) {
+      problems.push(`${who} pivot ${JSON.stringify(part.pivot)} is outside its ${part.w}x${part.h} canvas`);
+    }
+  }
+  return problems;
+}
+
+
+const KITS = {"format":"mews.kits","version":1,"sheet":"heads.sheet.png","sheetSize":[256,64],"characters":[{"id":"aristotle","name":"Aristotle","epithet":"The Philosopher","school":"classical","doctrine":"The soul never thinks without an image","element":"aether","palette":{"skin":{"primary":"#CEA074","secondary":"#B1926D"},"hair":{"primary":"#B4946E","secondary":"#A38869"},"outfit":{"primary":"#9DADBD","secondary":"#846747","tertiary":"#DCB26B"},"outline":"#211A15","accent":"#91735A","element":"#E0CE8A"},"measured":{"skin":{"primary":"#CEA074","secondary":"#B1926D"},"hair":{"primary":"#B4946E","secondary":"#A38869"},"outfit":{"primary":"#9DADBD","secondary":"#846747","tertiary":"#DCB26B"},"outline":"#695344","accent":"#91735A","element":"#E0CE8A"},"boost":{"spread":1.7,"separate":0.61},"head":{"region":[40,1,37,46],"pivot":[19,46]},"garment":null,"accessory":null,"source":{"title":"The School of Athens (detail)","artist":"Raphael","year":1511,"url":"https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg","license":"public-domain","note":"Central figure holding the Ethics, gesturing toward the earth."},"paletteSource":null,"notes":"","ramps":{"skin":{"light":"#FFDDA6","base":"#D6A678","shadow":"#865741"},"hair":{"light":"#C0AC85","base":"#93795A","shadow":"#5C4232"},"outfitP":{"light":"#D6EBF7","base":"#9DADBD","shadow":"#5F6776"},"outfitS":{"light":"#AC976D","base":"#846747","shadow":"#533626"},"outfitT":{"light":"#FFDC97","base":"#DCB26B","shadow":"#8A5D37"}}},{"id":"pythagoras","name":"Pythagoras","epithet":"Of Samos","school":"presocratic","doctrine":"All is number","element":"number","palette":{"skin":{"primary":"#CFA87B","secondary":"#A1815D"},"hair":{"primary":"#694B2F","secondary":"#6D4F33"},"outfit":{"primary":"#D2AD8E","secondary":"#D2D2C4","tertiary":"#743E1E"},"outline":"#0F0905","accent":"#9E8E6C","element":"#3FA9A0"},"measured":{"skin":{"primary":"#CFA87B","secondary":"#A1815D"},"hair":{"primary":"#694B2F","secondary":"#6D4F33"},"outfit":{"primary":"#D2AD8E","secondary":"#D2D2C4","tertiary":"#743E1E"},"outline":"#59361E","accent":"#9E8E6C","element":"#3FA9A0"},"boost":{"spread":1.7,"separate":0},"head":{"region":[78,1,33,45],"pivot":[17,45]},"garment":null,"accessory":null,"source":{"title":"The School of Athens (detail)","artist":"Raphael","year":1511,"url":"https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg","license":"public-domain","note":"Figure 6 in the standard identification key. Seated, writing, with a slate held for him."},"paletteSource":null,"notes":"Head unusable — figure is bowed over his writing. Palette is good; wants a bust for the face.","ramps":{"skin":{"light":"#FFE4AD","base":"#CFA87B","shadow":"#825B44"},"hair":{"light":"#89724D","base":"#694B2F","shadow":"#422517"},"outfitP":{"light":"#FFE4BD","base":"#D2AD8E","shadow":"#836052"},"outfitS":{"light":"#FFFDF1","base":"#D2D2C4","shadow":"#828379"},"outfitT":{"light":"#976B3E","base":"#743E1E","shadow":"#49170A"}}},{"id":"heraclitus","name":"Heraclitus","epithet":"The Obscure","school":"presocratic","doctrine":"Everything flows","element":"fire","palette":{"skin":{"primary":"#DA7B52","secondary":"#96482D"},"hair":{"primary":"#3E2B2F","secondary":"#3F2423"},"outfit":{"primary":"#865C6F","secondary":"#4D1F33","tertiary":"#B6482D"},"outline":"#0E050D","accent":"#383230","element":"#E8622A"},"measured":{"skin":{"primary":"#DA7B52","secondary":"#96482D"},"hair":{"primary":"#3E2B2F","secondary":"#3F2423"},"outfit":{"primary":"#865C6F","secondary":"#4D1F33","tertiary":"#B6482D"},"outline":"#10060F","accent":"#383230","element":"#E8622A"},"boost":{"spread":1.7,"separate":0},"head":{"region":[1,1,38,48],"pivot":[19,48]},"garment":null,"accessory":null,"source":{"title":"Bronze bust of a bearded philosopher (\"pseudo-Seneca\" type)","artist":"Unknown, after a Hellenistic original","year":-50,"url":"https://commons.wikimedia.org/wiki/Category:Pseudo-Seneca","license":"public-domain","note":"Villa dei Papiri, Herculaneum. Used for geometry only — not a portrait of Heraclitus."},"paletteSource":{"title":"The School of Athens (detail)","artist":"Raphael","year":1511,"url":"https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg","license":"public-domain","note":"Figure 13 in the standard identification key. Seated on the steps, writing, in violet and orange boots."},"notes":"Shape from the pseudo-Seneca bronze; colour measured from the School of Athens.","ramps":{"skin":{"light":"#FFB780","base":"#DA7B52","shadow":"#883225"},"hair":{"light":"#715658","base":"#573C42","shadow":"#36232A"},"outfitP":{"light":"#AF8391","base":"#865C6F","shadow":"#543548"},"outfitS":{"light":"#713B4C","base":"#572339","shadow":"#361027"},"outfitT":{"light":"#EE8E5F","base":"#B6482D","shadow":"#72110E"}}}]};
+const SAVED = null;
+
+const el = (id) => document.getElementById(id);
+const ZOOM_TARGET = 460;
+
+let who = KITS.characters[0].id;
+let slotId = 'torso';
+let ink = '8';
+let tool = 'pencil';
+let painting = false;
+const undo = [];
+
+/* Parts live here, one per slot, seeded from whatever the last export saved. */
+const parts = {};
+for (const s of PART_SLOTS) {
+  const found = SAVED && SAVED.parts ? SAVED.parts.find((p) => p.id === s.id) : null;
+  parts[s.id] = found ? JSON.parse(JSON.stringify(found)) : createPart(s.id);
+}
+
+const kitOf = (id) => KITS.characters.find((k) => k.id === id);
+
+/* The palette an ink is worth right now. The build deepens a sampled outline until the
+   silhouette reads, so redo that here rather than trusting a stored value. */
+function activePalette() {
+  const kit = kitOf(who);
+  const p = JSON.parse(JSON.stringify(kit.measured));
+  p.outline = deepenOutline(p.outline, buildRamps(p, kit.boost));
+  return p;
+}
+function activeRamps() { return buildRamps(activePalette(), kitOf(who).boost); }
+
+function inkHex(ch) {
+  const spec = INKS[ch];
+  if (!spec) return null;
+  const palette = activePalette();
+  if (spec.role) return palette[spec.role];
+  const stops = activeRamps()[spec.material];
+  return stops ? rgbToHex(stops[{ light: 0, base: 1, shadow: 2 }[spec.stop]]) : null;
+}
+
+/* ── The canvas ────────────────────────────────────────────────────────────── */
+
+function zoomFor(part) {
+  return Math.max(4, Math.floor(ZOOM_TARGET / Math.max(part.w, part.h)));
+}
+
+function drawGrid() {
+  const part = parts[slotId];
+  const slot = findSlot(slotId);
+  const z = zoomFor(part);
+  const cv = el('grid');
+  cv.width = part.w * z;
+  cv.height = part.h * z;
+  const ctx = cv.getContext('2d');
+
+  /* A checker under the art, because a transparent pixel and a dark one are the same
+     thing on a dark panel and that is how holes get left in a sleeve.
+
+     Mid-grey and constant across themes, not the panel tokens: an outline ink is
+     near-black, and on a dark theme's panel it vanished into the checker it was supposed
+     to be distinguishable from. Mid-grey is the one ground everything reads against, and
+     it shifts colour perception least — the same reason the pigment card judges on 18%. */
+  const a = '#8E8E8C';
+  const b = '#7E7E7C';
+  for (let y = 0; y < part.h; y++) {
+    for (let x = 0; x < part.w; x++) {
+      ctx.fillStyle = (x + y) % 2 ? a : b;
+      ctx.fillRect(x * z, y * z, z, z);
+    }
+  }
+
+  for (let y = 0; y < part.h; y++) {
+    for (let x = 0; x < part.w; x++) {
+      const hex = inkHex(part.rows[y][x]);
+      if (!hex) continue;
+      ctx.fillStyle = hex;
+      ctx.fillRect(x * z, y * z, z, z);
+    }
+  }
+
+  if (z >= 8) {
+    ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--grid').trim();
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= part.w; x++) { ctx.beginPath(); ctx.moveTo(x * z + 0.5, 0); ctx.lineTo(x * z + 0.5, cv.height); ctx.stroke(); }
+    for (let y = 0; y <= part.h; y++) { ctx.beginPath(); ctx.moveTo(0, y * z + 0.5); ctx.lineTo(cv.width, y * z + 0.5); ctx.stroke(); }
+  }
+
+  /* The bone: where the pivot sits and how far the drawing has to reach to meet its
+     child joint. Draw past it and the limb overlaps the next one; stop short and the
+     figure comes apart at the knee. */
+  const px = part.pivot[0] * z + z / 2;
+  const py = part.pivot[1] * z + z / 2;
+  if (slot.reach) {
+    ctx.strokeStyle = 'rgba(255,60,110,0.55)';
+    ctx.setLineDash([5, 4]);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + slot.reach[0] * z, py + slot.reach[1] * z);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    /* A ring on the child joint: the part should meet it, not stop short or run past. */
+    ctx.beginPath();
+    ctx.arc(px + slot.reach[0] * z, py + slot.reach[1] * z, Math.max(3, z / 3), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#FF3C6E';
+  ctx.beginPath();
+  ctx.arc(px, py, Math.max(3, z / 3), 0, Math.PI * 2);
+  ctx.fill();
+
+  el('dims').textContent = part.w + ' \u00D7 ' + part.h + ' px  \u00B7  pivot ' + part.pivot.join(',')
+    + (slot.span ? '  \u00B7  bone ' + slot.span + ' px' : '  \u00B7  extremity');
+}
+
+function cellFrom(ev) {
+  const part = parts[slotId];
+  const z = zoomFor(part);
+  const r = el('grid').getBoundingClientRect();
+  return [
+    Math.floor((ev.clientX - r.left) / (r.width / part.w)),
+    Math.floor((ev.clientY - r.top) / (r.height / part.h)),
+  ];
+}
+
+function pushUndo() {
+  undo.push({ slotId, rows: [...parts[slotId].rows] });
+  if (undo.length > 120) undo.shift();
+}
+
+function apply(x, y, fresh) {
+  const part = parts[slotId];
+  if (tool === 'dropper') {
+    const found = inkAt(part, x, y);
+    if (found !== '.') { ink = found; renderInks(); }
+    return;
+  }
+  if (fresh) pushUndo();
+  if (tool === 'fill') parts[slotId] = fillInk(part, x, y, ink);
+  else parts[slotId] = setInk(part, x, y, tool === 'erase' ? '.' : ink);
+  redraw();
+}
+
+/* ── The figure at rest ────────────────────────────────────────────────────── */
+
+/* Forward kinematics over the real skeleton: no second copy of the bone table, so the
+   preview cannot drift from what the game will assemble. */
+function restPose() {
+  const pos = {};
+  const ang = {};
+  for (const bone of DEFAULT_SKELETON) {
+    const pa = bone.parent ? ang[bone.parent] : 0;
+    const base = bone.parent ? pos[bone.parent] : { x: 0, y: 0 };
+    const r = pa * Math.PI / 180;
+    pos[bone.id] = {
+      x: base.x + bone.pos[0] * Math.cos(r) - bone.pos[1] * Math.sin(r),
+      y: base.y + bone.pos[0] * Math.sin(r) + bone.pos[1] * Math.cos(r),
+    };
+    ang[bone.id] = pa + bone.rest;
+  }
+  return { pos, ang };
+}
+const POSE = restPose();
+
+function drawFigure() {
+  const cv = el('figure');
+  const SCALE = 2;
+  cv.width = 150 * SCALE;
+  cv.height = 250 * SCALE;
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  const ramps = activeRamps();
+  const palette = activePalette();
+  const ox = cv.width / 2;
+  const oy = cv.height - 12 * SCALE;
+
+  const ordered = [...PART_SLOTS].sort((p, q) => p.z - q.z);
+  for (const slot of ordered) {
+    const part = parts[slot.id];
+    if (isEmpty(part)) continue;
+    if (slot.id === 'fistF') continue;   // the swap target, not part of the rest pose
+    const img = renderPart(part, ramps, palette);
+    const tmp = document.createElement('canvas');
+    tmp.width = img.width; tmp.height = img.height;
+    tmp.getContext('2d').putImageData(new ImageData(img.data, img.width, img.height), 0, 0);
+
+    const at = POSE.pos[slot.bone];
+    const x = ox + at.x * PX_PER_UNIT * SCALE - part.pivot[0] * SCALE;
+    const y = oy - at.y * PX_PER_UNIT * SCALE - part.pivot[1] * SCALE;
+    ctx.drawImage(tmp, Math.round(x), Math.round(y), img.width * SCALE, img.height * SCALE);
+  }
+
+  const kit = kitOf(who);
+  if (kit.head && kit.head.region) {
+    const at = POSE.pos.head;
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    const hw = kit.head.region[2] * SCALE;
+    const hh = kit.head.region[3] * SCALE;
+    ctx.fillRect(ox + at.x * PX_PER_UNIT * SCALE - hw / 2, oy - at.y * PX_PER_UNIT * SCALE - hh, hw, hh);
+  }
+}
+
+/* ── Rendering ─────────────────────────────────────────────────────────────── */
+
+function renderWho() {
+  const host = el('who');
+  host.textContent = '';
+  for (const kit of KITS.characters) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(kit.id === who));
+    b.textContent = kit.name;
+    b.onclick = () => { who = kit.id; redraw(); };
+    host.appendChild(b);
+  }
+}
+
+function renderSlots() {
+  const host = el('slots');
+  host.textContent = '';
+  let group = null;
+  for (const slot of PART_SLOTS) {
+    if (slot.group !== group) {
+      group = slot.group;
+      const h = document.createElement('div');
+      h.className = 'lbl slotgroup';
+      h.textContent = group;
+      host.appendChild(h);
+    }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-current', String(slot.id === slotId));
+    const name = document.createElement('span');
+    name.textContent = slot.label;
+    const dot = document.createElement('span');
+    dot.className = 'dot' + (isEmpty(parts[slot.id]) ? '' : ' on');
+    dot.title = isEmpty(parts[slot.id]) ? 'not drawn yet' : 'drawn';
+    b.append(name, dot);
+    b.onclick = () => { slotId = slot.id; redraw(); };
+    host.appendChild(b);
+  }
+}
+
+function renderInks() {
+  const host = el('inks');
+  host.textContent = '';
+  for (const ch of INK_CHARS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(ch === ink));
+    b.title = INK_LABELS[ch] + '  (' + ch + ')';
+    const hex = inkHex(ch);
+    b.style.background = hex || 'transparent';
+    if (!hex) b.style.backgroundImage = 'repeating-linear-gradient(45deg, var(--rule) 0 4px, transparent 4px 8px)';
+    const key = document.createElement('span');
+    key.className = 'key';
+    key.textContent = ch;
+    key.style.color = hex && luminance(hexToRgb(hex)) < 120 ? '#fff' : '#000';
+    b.appendChild(key);
+    b.onclick = () => { ink = ch; renderInks(); };
+    host.appendChild(b);
+  }
+  el('inkname').textContent = INK_LABELS[ink] + (inkHex(ink) ? '  \u00B7  ' + inkHex(ink) : '');
+}
+
+function renderToolbar() {
+  const host = el('toolbar');
+  host.textContent = '';
+  const tools = [['pencil', 'Pencil'], ['fill', 'Fill'], ['erase', 'Erase'], ['dropper', 'Pick']];
+  for (const t of tools) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = t[1];
+    b.setAttribute('aria-pressed', String(tool === t[0]));
+    b.onclick = () => { tool = t[0]; renderToolbar(); };
+    host.appendChild(b);
+  }
+  const sep = document.createElement('span');
+  sep.className = 'sep';
+  host.appendChild(sep);
+
+  const extras = [
+    ['Outline', () => { pushUndo(); parts[slotId] = autoOutline(parts[slotId]); }],
+    ['Mirror', () => { pushUndo(); parts[slotId] = mirrorPart(parts[slotId]); }],
+    ['Undo', () => {
+      const last = undo.pop();
+      if (last) { slotId = last.slotId; parts[slotId] = { ...parts[slotId], rows: last.rows }; }
+    }],
+  ];
+  for (const e of extras) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = e[0];
+    b.onclick = () => { e[1](); redraw(); };
+    host.appendChild(b);
+  }
+}
+
+function renderFlags() {
+  const host = el('flags');
+  host.textContent = '';
+  const doc = exportDoc();
+  const problems = validateParts(doc);
+  const push = (text, calm) => {
+    const li = document.createElement('li');
+    li.textContent = text;
+    if (calm) li.className = 'calm';
+    host.appendChild(li);
+  };
+  for (const p of problems) push(p, false);
+
+  const drawn = PART_SLOTS.filter((s) => !isEmpty(parts[s.id])).length;
+  push(drawn + ' of ' + PART_SLOTS.length + ' parts drawn.', true);
+  push('Pink marks the bone: the dot is where the part hangs, the dashed line is how far it reaches to the next joint.', true);
+}
+
+function exportDoc() {
+  return createPartsDocument({
+    parts: PART_SLOTS.map((s) => parts[s.id]).filter((p) => !isEmpty(p)),
+  });
+}
+
+function renderExport() {
+  const doc = exportDoc();
+  el('out').textContent = doc.parts.length === 0
+    ? 'Nothing drawn yet.\nDraw a part and the JSON to save as art/parts/standard.json appears here.'
+    : JSON.stringify(doc, null, 1);
+}
+
+function redraw() {
+  renderWho();
+  renderSlots();
+  renderInks();
+  renderToolbar();
+  drawGrid();
+  drawFigure();
+  renderFlags();
+  renderExport();
+}
+
+/* ── Input ─────────────────────────────────────────────────────────────────── */
+
+const canvas = el('grid');
+canvas.addEventListener('pointerdown', (ev) => {
+  ev.preventDefault();
+  canvas.setPointerCapture(ev.pointerId);
+  painting = true;
+  const c = cellFrom(ev);
+  apply(c[0], c[1], true);
+});
+canvas.addEventListener('pointermove', (ev) => {
+  const c = cellFrom(ev);
+  const part = parts[slotId];
+  el('where').textContent = (c[0] >= 0 && c[1] >= 0 && c[0] < part.w && c[1] < part.h)
+    ? 'x ' + c[0] + '  y ' + c[1] + '  ink ' + inkAt(part, c[0], c[1])
+    : '\u00A0';
+  if (painting && tool !== 'fill') apply(c[0], c[1], false);
+});
+const stop = () => { painting = false; };
+canvas.addEventListener('pointerup', stop);
+canvas.addEventListener('pointercancel', stop);
+canvas.addEventListener('pointerleave', () => { el('where').textContent = '\u00A0'; });
+
+/* Number and letter keys pick an ink directly, which is how anyone actually draws. */
+addEventListener('keydown', (ev) => {
+  if (ev.target instanceof HTMLInputElement) return;
+  const k = ev.key;
+  if (INK_CHARS.includes(k)) { ink = k; renderInks(); return; }
+  if (k === 'b') { tool = 'pencil'; renderToolbar(); }
+  else if (k === 'g') { tool = 'fill'; renderToolbar(); }
+  else if (k === 'e') { tool = 'erase'; renderToolbar(); }
+  else if (k === 'i') { tool = 'dropper'; renderToolbar(); }
+  else if ((ev.metaKey || ev.ctrlKey) && k === 'z') {
+    const last = undo.pop();
+    if (last) { slotId = last.slotId; parts[slotId] = { ...parts[slotId], rows: last.rows }; redraw(); }
+  }
+});
+
+el('copy').onclick = async () => {
+  const btn = el('copy');
+  const was = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(el('out').textContent);
+    btn.textContent = 'Copied';
+  } catch (err) {
+    btn.textContent = 'Select the block below';
+  }
+  setTimeout(() => { btn.textContent = was; }, 1600);
+};
+el('clear').onclick = () => { pushUndo(); parts[slotId] = createPart(slotId); redraw(); };
+
+redraw();
+</script>
