@@ -108,6 +108,8 @@
     border: 1px solid var(--rule); background: var(--panel); color: var(--ink);
   }
   .acts button.go { background: var(--signal); border-color: var(--signal); color: var(--paper); }
+  .where { margin: 9px 0 0; font-size: 12px; color: var(--muted); }
+  .where b { color: var(--ink); font-weight: 550; }
   pre {
     margin: 14px 0 0; padding: 12px; background: var(--panel); border: 1px solid var(--rule);
     font: 11px/1.5 ui-monospace, Menlo, monospace; max-height: 260px; overflow: auto; white-space: pre;
@@ -151,9 +153,12 @@
       <div class="stagebox"><canvas id="figure"></canvas></div>
 
       <div class="acts">
-        <button type="button" id="copy" class="go">Copy all parts</button>
+        <button type="button" id="save" class="go" hidden>Save standard.json</button>
+        <button type="button" id="copy">Copy all parts</button>
         <button type="button" id="clear">Clear part</button>
+        <button type="button" id="discard" hidden>Discard</button>
       </div>
+      <p class="where" id="storage"></p>
       <pre id="out"></pre>
     </section>
   </div>
@@ -1332,10 +1337,35 @@ let tool = 'pencil';
 let painting = false;
 const undo = [];
 
-/* Parts live here, one per slot, seeded from whatever the last export saved. */
+/* Where the working copy lives between visits.
+
+   A drawing that exists only in a tab is a drawing you lose by closing the tab, and this
+   page is opened from a link rather than kept open. Every change is written to browser
+   storage; the file baked in at generation time is the floor to fall back to. Storage can
+   throw outright in a sandboxed frame, so every touch of it is guarded and a failure just
+   means the page behaves as it did before autosave existed. */
+const STORE_KEY = 'mews.parts.standard';
+
+function readStore() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) { return null; }
+}
+function writeStore(doc) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(doc)); return true; }
+  catch (err) { return false; }
+}
+
+let restored = readStore();
+let storageWorks = restored !== null || writeStore(createPartsDocument({ parts: [] }));
+
+/* Parts live here, one per slot: the browser's working copy if there is one, otherwise
+   whatever the last saved file held, otherwise blank. */
+const seed = restored || SAVED;
 const parts = {};
 for (const s of PART_SLOTS) {
-  const found = SAVED && SAVED.parts ? SAVED.parts.find((p) => p.id === s.id) : null;
+  const found = seed && seed.parts ? seed.parts.find((p) => p.id === s.id) : null;
   parts[s.id] = found ? JSON.parse(JSON.stringify(found)) : createPart(s.id);
 }
 
@@ -1652,7 +1682,22 @@ function renderExport() {
     : JSON.stringify(doc, null, 1);
 }
 
+function renderStorage() {
+  const host = el('storage');
+  const drawn = PART_SLOTS.filter((x) => !isEmpty(parts[x.id])).length;
+  if (!storageWorks) {
+    host.innerHTML = '<b>Not autosaving</b> — this browser refused storage. Copy or save before closing the tab.';
+    el('discard').hidden = true;
+    return;
+  }
+  host.innerHTML = drawn === 0
+    ? 'Autosaves to this browser as you draw. Save the file to keep it in the repo.'
+    : '<b>Autosaved</b> to this browser. It survives a reload, not a different machine — save the file to keep it.';
+  el('discard').hidden = !restored;
+}
+
 function redraw() {
+  if (storageWorks && !writeStore(exportDoc())) storageWorks = false;
   renderWho();
   renderSlots();
   renderInks();
@@ -1661,6 +1706,7 @@ function redraw() {
   drawFigure();
   renderFlags();
   renderExport();
+  renderStorage();
 }
 
 /* ── Input ─────────────────────────────────────────────────────────────────── */
@@ -1713,6 +1759,37 @@ el('copy').onclick = async () => {
   setTimeout(() => { btn.textContent = was; }, 1600);
 };
 el('clear').onclick = () => { pushUndo(); parts[slotId] = createPart(slotId); redraw(); };
+
+el('discard').onclick = () => {
+  if (!confirm('Discard the working copy in this browser and go back to the last saved file?')) return;
+  try { localStorage.removeItem(STORE_KEY); } catch (err) { /* nothing to remove */ }
+  location.reload();
+};
+
+/* A real file, when the viewer's runtime offers one. The save is always confirmed by the
+   viewer and can be declined, so this is offered on a click and never assumed to happen. */
+el('save').onclick = async () => {
+  const btn = el('save');
+  const was = btn.textContent;
+  const downloads = await claude.use('downloads');
+  if (!downloads) { btn.textContent = 'Not available here'; setTimeout(() => { btn.textContent = was; }, 2000); return; }
+  try {
+    await downloads.save({ filename: 'standard.json', data: el('out').textContent });
+    btn.textContent = 'Saved';
+  } catch (err) {
+    btn.textContent = err && err.code === 'declined' ? 'Cancelled' : 'Could not save';
+  }
+  setTimeout(() => { btn.textContent = was; }, 2200);
+};
+
+/* Hide the affordance entirely where saving cannot work, rather than offering a button
+   that fails when pressed. */
+(async () => {
+  try {
+    if (typeof claude === 'undefined' || !claude.use) return;
+    if (await claude.use('downloads')) el('save').hidden = false;
+  } catch (err) { /* leave it hidden */ }
+})();
 
 redraw();
 </script>
