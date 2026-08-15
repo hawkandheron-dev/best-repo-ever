@@ -112,3 +112,31 @@
 .btnSprite .icon {
   color: #fab23e;
 }
+
+.btnFighter {
+  border-color: #5a3a52;
+  background: #2a0f24;
+}
+
+.btnFighter:active {
+  background: #3a1630;
+  border-color: #8a5a7e;
+}
+
+.btnFighter .icon {
+  color: #e8b0d0;
+}
+
+.btnRig {
+  border-color: #3a5a56;
+  background: #0f2a26;
+}
+
+.btnRig:active {
+  background: #163a34;
+  border-color: #5a8a82;
+}
+
+.btnRig .icon {
+  color: #a0d8c8;
+}

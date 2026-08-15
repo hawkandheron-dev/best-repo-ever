@@ -8,7 +8,14 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "sim": "vite-node scripts/sim.js"
+    "sim": "vite-node scripts/sim.js",
+    "rigtest": "vite-node scripts/rigtest.js",
+    "palettetest": "vite-node scripts/palettetest.js",
+    "partstest": "vite-node scripts/partstest.js",
+    "buildkit": "vite-node scripts/buildkit.js",
+    "kitpreview": "vite-node scripts/kitpreview.js",
+    "buildcard": "vite-node scripts/buildcard.js",
+    "buildstudio": "vite-node scripts/buildstudio.js"
   },
   "dependencies": {
     "chess.js": "^1.4.0",

@@ -1,0 +1,315 @@
+{
+  "format": "mews.kits",
+  "version": 1,
+  "sheet": "heads.sheet.png",
+  "sheetSize": [
+    256,
+    64
+  ],
+  "characters": [
+    {
+      "id": "aristotle",
+      "name": "Aristotle",
+      "epithet": "The Philosopher",
+      "school": "classical",
+      "doctrine": "The soul never thinks without an image",
+      "element": "aether",
+      "palette": {
+        "skin": {
+          "primary": "#CEA074",
+          "secondary": "#B1926D"
+        },
+        "hair": {
+          "primary": "#B4946E",
+          "secondary": "#A38869"
+        },
+        "outfit": {
+          "primary": "#9DADBD",
+          "secondary": "#846747",
+          "tertiary": "#DCB26B"
+        },
+        "outline": "#211A15",
+        "accent": "#91735A",
+        "element": "#E0CE8A"
+      },
+      "measured": {
+        "skin": {
+          "primary": "#CEA074",
+          "secondary": "#B1926D"
+        },
+        "hair": {
+          "primary": "#B4946E",
+          "secondary": "#A38869"
+        },
+        "outfit": {
+          "primary": "#9DADBD",
+          "secondary": "#846747",
+          "tertiary": "#DCB26B"
+        },
+        "outline": "#695344",
+        "accent": "#91735A",
+        "element": "#E0CE8A"
+      },
+      "boost": {
+        "spread": 1.7,
+        "separate": 0.61
+      },
+      "head": {
+        "region": [
+          40,
+          1,
+          37,
+          46
+        ],
+        "pivot": [
+          19,
+          46
+        ]
+      },
+      "garment": null,
+      "accessory": null,
+      "source": {
+        "title": "The School of Athens (detail)",
+        "artist": "Raphael",
+        "year": 1511,
+        "url": "https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg",
+        "license": "public-domain",
+        "note": "Central figure holding the Ethics, gesturing toward the earth."
+      },
+      "paletteSource": null,
+      "notes": "",
+      "ramps": {
+        "skin": {
+          "light": "#FFDDA6",
+          "base": "#D6A678",
+          "shadow": "#865741"
+        },
+        "hair": {
+          "light": "#C0AC85",
+          "base": "#93795A",
+          "shadow": "#5C4232"
+        },
+        "outfitP": {
+          "light": "#D6EBF7",
+          "base": "#9DADBD",
+          "shadow": "#5F6776"
+        },
+        "outfitS": {
+          "light": "#AC976D",
+          "base": "#846747",
+          "shadow": "#533626"
+        },
+        "outfitT": {
+          "light": "#FFDC97",
+          "base": "#DCB26B",
+          "shadow": "#8A5D37"
+        }
+      }
+    },
+    {
+      "id": "pythagoras",
+      "name": "Pythagoras",
+      "epithet": "Of Samos",
+      "school": "presocratic",
+      "doctrine": "All is number",
+      "element": "number",
+      "palette": {
+        "skin": {
+          "primary": "#CFA87B",
+          "secondary": "#A1815D"
+        },
+        "hair": {
+          "primary": "#694B2F",
+          "secondary": "#6D4F33"
+        },
+        "outfit": {
+          "primary": "#D2AD8E",
+          "secondary": "#D2D2C4",
+          "tertiary": "#743E1E"
+        },
+        "outline": "#0F0905",
+        "accent": "#9E8E6C",
+        "element": "#3FA9A0"
+      },
+      "measured": {
+        "skin": {
+          "primary": "#CFA87B",
+          "secondary": "#A1815D"
+        },
+        "hair": {
+          "primary": "#694B2F",
+          "secondary": "#6D4F33"
+        },
+        "outfit": {
+          "primary": "#D2AD8E",
+          "secondary": "#D2D2C4",
+          "tertiary": "#743E1E"
+        },
+        "outline": "#59361E",
+        "accent": "#9E8E6C",
+        "element": "#3FA9A0"
+      },
+      "boost": {
+        "spread": 1.7,
+        "separate": 0
+      },
+      "head": {
+        "region": [
+          78,
+          1,
+          33,
+          45
+        ],
+        "pivot": [
+          17,
+          45
+        ]
+      },
+      "garment": null,
+      "accessory": null,
+      "source": {
+        "title": "The School of Athens (detail)",
+        "artist": "Raphael",
+        "year": 1511,
+        "url": "https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg",
+        "license": "public-domain",
+        "note": "Figure 6 in the standard identification key. Seated, writing, with a slate held for him."
+      },
+      "paletteSource": null,
+      "notes": "Head unusable — figure is bowed over his writing. Palette is good; wants a bust for the face.",
+      "ramps": {
+        "skin": {
+          "light": "#FFE4AD",
+          "base": "#CFA87B",
+          "shadow": "#825B44"
+        },
+        "hair": {
+          "light": "#89724D",
+          "base": "#694B2F",
+          "shadow": "#422517"
+        },
+        "outfitP": {
+          "light": "#FFE4BD",
+          "base": "#D2AD8E",
+          "shadow": "#836052"
+        },
+        "outfitS": {
+          "light": "#FFFDF1",
+          "base": "#D2D2C4",
+          "shadow": "#828379"
+        },
+        "outfitT": {
+          "light": "#976B3E",
+          "base": "#743E1E",
+          "shadow": "#49170A"
+        }
+      }
+    },
+    {
+      "id": "heraclitus",
+      "name": "Heraclitus",
+      "epithet": "The Obscure",
+      "school": "presocratic",
+      "doctrine": "Everything flows",
+      "element": "fire",
+      "palette": {
+        "skin": {
+          "primary": "#DA7B52",
+          "secondary": "#96482D"
+        },
+        "hair": {
+          "primary": "#3E2B2F",
+          "secondary": "#3F2423"
+        },
+        "outfit": {
+          "primary": "#865C6F",
+          "secondary": "#4D1F33",
+          "tertiary": "#B6482D"
+        },
+        "outline": "#0E050D",
+        "accent": "#383230",
+        "element": "#E8622A"
+      },
+      "measured": {
+        "skin": {
+          "primary": "#DA7B52",
+          "secondary": "#96482D"
+        },
+        "hair": {
+          "primary": "#3E2B2F",
+          "secondary": "#3F2423"
+        },
+        "outfit": {
+          "primary": "#865C6F",
+          "secondary": "#4D1F33",
+          "tertiary": "#B6482D"
+        },
+        "outline": "#10060F",
+        "accent": "#383230",
+        "element": "#E8622A"
+      },
+      "boost": {
+        "spread": 1.7,
+        "separate": 0
+      },
+      "head": {
+        "region": [
+          1,
+          1,
+          38,
+          48
+        ],
+        "pivot": [
+          19,
+          48
+        ]
+      },
+      "garment": null,
+      "accessory": null,
+      "source": {
+        "title": "Bronze bust of a bearded philosopher (\"pseudo-Seneca\" type)",
+        "artist": "Unknown, after a Hellenistic original",
+        "year": -50,
+        "url": "https://commons.wikimedia.org/wiki/Category:Pseudo-Seneca",
+        "license": "public-domain",
+        "note": "Villa dei Papiri, Herculaneum. Used for geometry only — not a portrait of Heraclitus."
+      },
+      "paletteSource": {
+        "title": "The School of Athens (detail)",
+        "artist": "Raphael",
+        "year": 1511,
+        "url": "https://commons.wikimedia.org/wiki/File:Sanzio_01.jpg",
+        "license": "public-domain",
+        "note": "Figure 13 in the standard identification key. Seated on the steps, writing, in violet and orange boots."
+      },
+      "notes": "Shape from the pseudo-Seneca bronze; colour measured from the School of Athens.",
+      "ramps": {
+        "skin": {
+          "light": "#FFB780",
+          "base": "#DA7B52",
+          "shadow": "#883225"
+        },
+        "hair": {
+          "light": "#715658",
+          "base": "#573C42",
+          "shadow": "#36232A"
+        },
+        "outfitP": {
+          "light": "#AF8391",
+          "base": "#865C6F",
+          "shadow": "#543548"
+        },
+        "outfitS": {
+          "light": "#713B4C",
+          "base": "#572339",
+          "shadow": "#361027"
+        },
+        "outfitT": {
+          "light": "#EE8E5F",
+          "base": "#B6482D",
+          "shadow": "#72110E"
+        }
+      }
+    }
+  ]
+}

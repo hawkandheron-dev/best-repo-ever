@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 dist/
 node_modules/
+
+# OpenCV.js is a large optional build input for the Rig Studio, not source.
+public/vendor/opencv/opencv.js
+art/preview/

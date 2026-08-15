@@ -1,0 +1,238 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: #14121c;
+  color: #e8dcc0;
+  padding: calc(var(--safe-top) + 6px) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px 8px;
+  flex: 0 0 auto;
+}
+
+.title {
+  font-size: 11px;
+  margin: 0;
+  color: #f0c040;
+  letter-spacing: 1px;
+}
+
+.sourceNote {
+  font-size: 7px;
+  color: #7e7568;
+  margin-left: auto;
+  text-align: right;
+}
+
+.backBtn {
+  font-size: 8px;
+  padding: 6px 10px;
+  color: #e8dcc0;
+  background: #2a2436;
+  border: 2px solid #c0a028;
+  box-shadow: 2px 2px 0 #0a0810;
+}
+
+.backBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 8px;
+  padding: 0 8px 8px;
+}
+
+.clipList {
+  flex: 0 0 132px;
+  overflow-y: auto;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.group {
+  margin-bottom: 8px;
+}
+
+.groupLabel {
+  display: block;
+  font-size: 7px;
+  color: #f0c040;
+  padding: 4px 2px 3px;
+  border-bottom: 1px solid #3a3048;
+  margin-bottom: 3px;
+}
+
+.clipBtn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  font-size: 7px;
+  padding: 5px 5px;
+  margin-bottom: 2px;
+  color: #b8ab94;
+  background: #1e1a28;
+  border: 1px solid #322a40;
+  text-align: left;
+}
+
+.clipActive {
+  color: #14121c;
+  background: #f0c040;
+  border-color: #f0c040;
+}
+
+.clipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clipFrames {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+/* ── Stage ────────────────────────────────────────────────────────────────── */
+
+.stage {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 6px;
+}
+
+.canvas {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  background: #1c1828;
+  border: 2px solid #3a3048;
+  /* The figure is drawn from vector primitives and rotates every frame, so it wants
+     smoothing — index.css sets `pixelated` on body and it inherits into canvases. */
+  image-rendering: auto;
+}
+
+/* ── Transport ────────────────────────────────────────────────────────────── */
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.ctrl {
+  font-size: 8px;
+  min-width: 34px;
+  padding: 7px 6px;
+  color: #e8dcc0;
+  background: #2a2436;
+  border: 2px solid #5a4a70;
+}
+
+.ctrl:active {
+  transform: translate(1px, 1px);
+}
+
+.play {
+  border-color: #c0a028;
+  color: #f0c040;
+}
+
+.frameLabel {
+  font-size: 8px;
+  color: #f0c040;
+  min-width: 62px;
+  text-align: center;
+}
+
+.scrub {
+  flex: 1 1 auto;
+  min-width: 60px;
+  accent-color: #f0c040;
+}
+
+/* ── Options ──────────────────────────────────────────────────────────────── */
+
+.options {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.opt {
+  font-size: 7px;
+  padding: 6px 8px;
+  color: #b8ab94;
+  background: #1e1a28;
+  border: 1px solid #4a3e5c;
+}
+
+.optActive {
+  color: #14121c;
+  background: #f0c040;
+  border-color: #f0c040;
+}
+
+.divider {
+  width: 1px;
+  align-self: stretch;
+  background: #3a3048;
+  margin: 0 3px;
+}
+
+/* Portrait phones: the clip list becomes a scrolling strip above the stage. */
+@media (orientation: portrait) and (max-width: 720px) {
+  .body {
+    flex-direction: column;
+  }
+
+  .clipList {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+  }
+
+  .group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 0;
+  }
+
+  .groupLabel {
+    border-bottom: none;
+    border-right: 1px solid #3a3048;
+    padding: 0 6px 0 2px;
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+
+  .clipBtn {
+    width: auto;
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+}

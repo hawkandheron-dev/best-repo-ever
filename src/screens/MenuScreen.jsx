@@ -26,6 +26,16 @@ export function MenuScreen({ onSelect }) {
           <span className={styles.label}>Sprite Studio</span>
           <span className={styles.desc}>Pixel art editor · Hex rotations</span>
         </button>
+        <button className={`${styles.btn} ${styles.btnFighter}`} onClick={() => onSelect('move-viewer')}>
+          <span className={styles.icon}>🏛</span>
+          <span className={styles.label}>Move Viewer</span>
+          <span className={styles.desc}>Philosopher fighter · Standard moveset</span>
+        </button>
+        <button className={`${styles.btn} ${styles.btnRig}`} onClick={() => onSelect('rig-studio')}>
+          <span className={styles.icon}>🗿</span>
+          <span className={styles.label}>Rig Studio</span>
+          <span className={styles.desc}>Painting → cut parts → rigged fighter</span>
+        </button>
       </div>
     </div>
   );

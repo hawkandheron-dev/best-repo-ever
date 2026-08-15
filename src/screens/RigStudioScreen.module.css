@@ -1,0 +1,360 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: #14121c;
+  color: #e8dcc0;
+  padding: calc(var(--safe-top) + 6px) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 8px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 11px;
+  margin: 0;
+  color: #f0c040;
+  letter-spacing: 1px;
+}
+
+.backBtn {
+  font-size: 8px;
+  padding: 6px 10px;
+  color: #e8dcc0;
+  background: #2a2436;
+  border: 2px solid #c0a028;
+  box-shadow: 2px 2px 0 #0a0810;
+}
+
+.backBtn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.tabs {
+  display: flex;
+  gap: 3px;
+}
+
+.tab {
+  font-size: 7px;
+  padding: 7px 9px;
+  color: #b8ab94;
+  background: #1e1a28;
+  border: 1px solid #4a3e5c;
+}
+
+.tabActive {
+  color: #14121c;
+  background: #f0c040;
+  border-color: #f0c040;
+}
+
+.status {
+  margin-left: auto;
+  font-size: 7px;
+  color: #7e7568;
+}
+
+.error {
+  margin: 0 10px 6px;
+  padding: 7px 9px;
+  font-size: 7px;
+  line-height: 1.6;
+  color: #ffd0c0;
+  background: #4a1c14;
+  border: 1px solid #8a3a28;
+  cursor: pointer;
+}
+
+/* ── Panels ───────────────────────────────────────────────────────────────── */
+
+.panelWide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 10px 10px;
+  overflow-y: auto;
+}
+
+.split {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 8px 8px;
+}
+
+.sidebar {
+  flex: 0 0 152px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.stage {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 6px;
+}
+
+/* ── Part list ────────────────────────────────────────────────────────────── */
+
+.group {
+  margin-bottom: 9px;
+}
+
+.groupLabel {
+  display: block;
+  font-size: 7px;
+  color: #f0c040;
+  padding: 4px 2px 3px;
+  border-bottom: 1px solid #3a3048;
+  margin-bottom: 3px;
+}
+
+.partBtn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  font-size: 7px;
+  padding: 6px 5px;
+  margin-bottom: 2px;
+  color: #b8ab94;
+  background: #1e1a28;
+  border: 1px solid #322a40;
+  text-align: left;
+}
+
+.partActive {
+  color: #14121c;
+  background: #f0c040;
+  border-color: #f0c040;
+}
+
+.partDone {
+  border-color: #3a7a5c;
+}
+
+.partDone.partActive {
+  border-color: #f0c040;
+}
+
+.partLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partMark {
+  flex: 0 0 auto;
+  color: #5ac48c;
+}
+
+.partActive .partMark {
+  color: #14121c;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.cutting {
+  font-size: 7px;
+  color: #7e7568;
+  margin-right: 4px;
+}
+
+.cutting strong {
+  color: #f0c040;
+}
+
+.primary,
+.secondary,
+.danger {
+  font-size: 7px;
+  padding: 7px 10px;
+  border: 1px solid #4a3e5c;
+}
+
+.primary {
+  color: #14121c;
+  background: #f0c040;
+  border-color: #c0a028;
+}
+
+.secondary {
+  color: #b8ab94;
+  background: #1e1a28;
+}
+
+.danger {
+  color: #ffc0b0;
+  background: #3a1610;
+  border-color: #8a3a28;
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.formRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 7px;
+  color: #b8ab94;
+  margin-bottom: 5px;
+}
+
+.slider span {
+  flex: 0 0 42px;
+}
+
+.slider input {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: #f0c040;
+}
+
+/* ── Forms ────────────────────────────────────────────────────────────────── */
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 7px;
+  color: #7e7568;
+}
+
+.fieldWide {
+  grid-column: 1 / -1;
+}
+
+.field input {
+  font-family: inherit;
+  font-size: 8px;
+  padding: 7px;
+  color: #e8dcc0;
+  background: #1e1a28;
+  border: 1px solid #4a3e5c;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: #f0c040;
+}
+
+.blurb {
+  font-size: 7px;
+  line-height: 1.9;
+  color: #7e7568;
+  margin: 0;
+  max-width: 76ch;
+}
+
+.blurb code {
+  color: #b8ab94;
+}
+
+.hint {
+  font-size: 7px;
+  line-height: 1.8;
+  color: #7e7568;
+  margin: 0;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 8px;
+  padding: 10px;
+  background: #1a1624;
+  border: 1px solid #322a40;
+  max-width: 60ch;
+}
+
+.summary strong {
+  color: #f0c040;
+}
+
+.warn {
+  color: #f0a060;
+  line-height: 1.7;
+}
+
+.ok {
+  color: #5ac48c;
+}
+
+/* Portrait: the part list becomes a horizontal strip. */
+@media (orientation: portrait) and (max-width: 720px) {
+  .split {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 0;
+  }
+
+  .groupLabel {
+    border-bottom: none;
+    border-right: 1px solid #3a3048;
+    padding: 0 6px 0 2px;
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+
+  .partBtn {
+    width: auto;
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+}
